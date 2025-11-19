@@ -4,22 +4,120 @@
 <meta charset="UTF-8">
 <title>Scraper Blog Sakurazaka46 (Tag Mentah + Terjemahan + Romaji)</title>
 <script src="https://unpkg.com/wanakana"></script>
+<!-- Bootstrap 5 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
 <style>
-    body { font-family: Arial; padding: 20px; max-width: 900px; margin: auto; }
-    input { width: 100%; padding: 10px; font-size: 16px; }
-    button { padding: 10px 15px; margin-top: 10px; font-size: 16px; }
-    h3 { margin-top: 40px; }
-    pre { background: #f0f0f0; padding: 15px; border-radius: 6px; white-space: pre-wrap; word-break: break-word; }
+/* --- Background Image & Centering --- */
+body {
+    height: 100vh;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: url('https://github.com/ReMineral/saku-blog/blob/main/5th_TOUR_2025%2013.jpg?raw=true') center/cover no-repeat;
+    position: relative;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body::before {
+    content: "";
+    position: absolute;
+    top:0;
+    left:0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.4); /* overlay gelap 40% */
+    z-index: 0;
+}
+
+/* --- Container --- */
+.container-scraper {
+    position: relative; /* di atas overlay */
+    z-index: 1;
+    max-width: 900px;
+    width: 90%;
+    background: rgba(255,255,255,0.95);
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+}
+
+/* --- Typography --- */
+h2 { margin-bottom: 20px; color: #0984e3; display: flex; justify-content: center;}
+h3 { margin-top: 30px; margin-bottom: 10px; color: #6c5ce7; }
+
+/* --- Input & Button --- */
+input {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    border: 1px solid #dfe6e9;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    transition: all 0.2s;
+}
+input:focus { border-color: #0984e3; outline: none; box-shadow: 0 0 5px rgba(0,123,255,0.3); }
+
+button {
+    padding: 10px 20px;
+    font-size: 16px;
+    border: none;
+    border-radius: 8px;
+    width: 100%;
+    background: #00b894;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 20px;
+}
+button:hover { background: #019875; }
+
+/* --- Output Container --- */
+#resultFinal {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+}
+
+/* --- Pre Output --- */
+pre {
+    background: #f1f2f6;
+    padding: 15px;
+    border-radius: 8px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 14px;
+    margin-top: 10px;
+}
+.text-danger
+    display: flex;
+    justify-content: center;
+
+/* Tombol copy di atas pre */
+#resultFinal button {
+    margin-bottom: 10px;
+}
+
+/* Responsive */
+@media(max-width: 600px){
+    input, button { font-size: 14px; padding: 10px; }
+    pre { font-size: 13px; }
+}
 </style>
 </head>
 <body>
 
-<h2>Ambil Box Artikel (Tag Mentah + Terjemahan + Romaji via Wanakana)</h2>
+<div class="container-scraper">
+  <h2>SAKAMICHI ARTICLE GRABBER</h2>
 
-<input id="urlInput" placeholder="Tempel link blog Sakurazaka46 di sini">
-<button onclick="scrape()">Ambil Artikel</button>
+  <input id="urlInput" placeholder="Tempel link blog Sakurazaka46 di sini">
+  <button onclick="scrape()">Ambil Artikel</button>
 
-<div id="resultFinal"></div>
+  <div id="resultFinal"></div>
+</div>
 
 <script>
 let articleLines = [];
@@ -28,7 +126,7 @@ let articleLines = [];
 async function scrape() {
     const url = document.getElementById("urlInput").value;
     if (!url) return alert("Masukkan URL dulu!");
-    document.getElementById("resultFinal").innerHTML = "Mengambil data...";
+    document.getElementById("resultFinal").innerHTML = `<div class="text-secondary">Mengambil data...</div>`;
 
     try {
         const proxyURL = "https://api.allorigins.win/get?url=" + encodeURIComponent(url);
@@ -39,16 +137,13 @@ async function scrape() {
         const doc = parser.parseFromString(data.contents, "text/html");
         const article = doc.querySelector("div.box-article");
         if (!article) {
-            document.getElementById("resultFinal").innerHTML = "Tidak menemukan box-article";
+            document.getElementById("resultFinal").innerHTML = `<div class="text-danger">Tidak menemukan box-article</div>`;
             return;
         }
 
         let html = article.innerHTML;
-
-        // tambahkan sakurazaka46.com ke semua src gambar
         html = html.replace(/<img\s+src="(\/[^"]*)"/g, '<img src="https://sakurazaka46.com$1"');
 
-        // split menjadi baris sesuai <br>, tetap menyertakan tag
         articleLines = html
             .split(/(<br\s*\/?>)/i)
             .map(line => line.trim())
@@ -57,7 +152,7 @@ async function scrape() {
         await buildOutputFinal();
 
     } catch (err) {
-        document.getElementById("resultFinal").innerHTML = "Error: " + err.message;
+        document.getElementById("resultFinal").innerHTML = `<div class="text-danger">Error: ${err.message}</div>`;
     }
 }
 
@@ -76,20 +171,19 @@ async function buildOutputFinal() {
     let promises = articleLines.map(async line => {
         let textOnly = line.replace(/<[^>]+>/g, "").trim();
         if(textOnly.length === 0) return line;
-
         let terjemah = await translate(textOnly);
         let romaji = wanakana.toRomaji(textOnly);
-
         return `${line}<br />\n→ ${terjemah}<br />\n${romaji}<br />`;
     });
 
     let finalLines = await Promise.all(promises);
 
-    // Tombol copy ditempatkan di atas <pre>
     document.getElementById("resultFinal").innerHTML = `
-        <h3>OUTPUT — Blog + Terjemahan + Romaji</h3>
-        <button onclick="copyFinal()">Copy</button>
-        <pre id="finalContent"></pre>
+        <h3 class="text-purple">OUTPUT — Blog + Terjemahan + Romaji</h3>
+        <button onclick="copyFinal()" class="btn btn-primary mb-2">Copy</button>
+        <div class="card p-3">
+          <pre id="finalContent" class="mb-0"></pre>
+        </div>
     `;
 
     document.getElementById("finalContent").textContent = finalLines.join("\n");
