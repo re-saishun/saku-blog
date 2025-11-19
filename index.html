@@ -2,36 +2,50 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Scraper Blog Sakurazaka46 (3 Output)</title>
-
-<!-- Wanakana CDN untuk romaji -->
+<title>Scraper Blog Sakurazaka46</title>
 <script src="https://unpkg.com/wanakana"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dist/kuromoji.js"></script>
 <style>
     body { font-family: Arial; padding: 20px; max-width: 900px; margin: auto; }
     input { width: 100%; padding: 10px; font-size: 16px; }
     button { padding: 10px 15px; margin-top: 10px; font-size: 16px; }
     h3 { margin-top: 40px; }
-    pre { background: #f0f0f0; padding: 15px; border-radius: 6px; white-space: pre-wrap; }
+    pre { background: #f0f0f0; padding: 15px; border-radius: 6px; white-space: pre-wrap; word-break: break-word; }
 </style>
 </head>
 <body>
 
-<h2>Ambil Box Artikel (HTML + Romaji + Terjemahan)</h2>
+<h2>Ambil Box Artikel (Romaji + Terjemahan + Kanji→Romaji)</h2>
 
 <input id="urlInput" placeholder="Tempel link blog Sakurazaka46 di sini">
 <button onclick="scrape()">Ambil Artikel</button>
 
-<div id="result1"></div>
 <div id="result2"></div>
 <div id="result3"></div>
+<div id="result4"></div>
 
 <script>
+let articleLines = [];
+let kuromojiTokenizer = null;
+
+// Load Kuromoji dictionary
+kuromoji.builder({ dicPath: "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/" }).build((err, tokenizer) => {
+    if(err) { console.error(err); return; }
+    kuromojiTokenizer = tokenizer;
+});
+
+// escape HTML agar tag tampil mentah
+function escapeHTML(str) {
+    return str.replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;");
+}
+
+// ------------------- Scrape -------------------
 async function scrape() {
     const url = document.getElementById("urlInput").value;
     if (!url) return alert("Masukkan URL dulu!");
-
-    document.getElementById("result1").innerHTML = "Mengambil data...";
+    document.getElementById("result2").innerHTML = "Mengambil data...";
 
     try {
         const proxyURL = "https://api.allorigins.win/get?url=" + encodeURIComponent(url);
@@ -40,54 +54,112 @@ async function scrape() {
 
         const parser = new DOMParser();
         const doc = parser.parseFromString(data.contents, "text/html");
-
         const article = doc.querySelector("div.box-article");
         if (!article) {
-            result1.innerHTML = "Tidak menemukan box-article";
+            result2.innerHTML = "Tidak menemukan box-article";
             return;
         }
 
-        // HTML asli dari artikel
         let html = article.innerHTML;
 
-        // ---- OUTPUT 1: HTML RAPI PER BARIS ----
-        let lines = html
-            .replace(/<br\s*\/?>/gi, "<<<BR>>>") 
-            .split("<<<BR>>>")
+        // tambahkan sakurazaka46.com ke semua src gambar
+        html = html.replace(/<img\s+src="(\/[^"]*)"/g, '<img src="https://sakurazaka46.com$1"');
+
+        articleLines = html
+            .replace(/<br\s*\/?>/gi, "<br>")
+            .split(/(<br>)/)
             .map(line => line.trim())
             .filter(line => line.length > 0);
 
-        let output1 = lines.join("\n");
-
-        document.getElementById("result1").innerHTML = `
-            <h3>OUTPUT 1 — HTML Rapih Per Baris</h3>
-            <pre>${output1}</pre>
-        `;
-
-        // ---- OUTPUT 2: ROMAJI ----
-        let output2Lines = lines.map(line =>
-            wanakana.toRomaji(line)
-        );
-        let output2 = output2Lines.join("\n");
-
-        document.getElementById("result2").innerHTML = `
-            <h3>OUTPUT 2 — Versi Romaji</h3>
-            <pre>${output2}</pre>
-        `;
-
-        // ---- OUTPUT 3: TEMPLATE Terjemahan Indonesia ----
-        let output3 = lines.map((line, i) =>
-            `${i+1}. ${line}\n   → (arti Indonesia di sini)`
-        ).join("\n\n");
-
-        document.getElementById("result3").innerHTML = `
-            <h3>OUTPUT 3 — Arti Per Baris (Template)</h3>
-            <pre>${output3}</pre>
-        `;
+        buildOutput2();
+        await buildOutput3();
+        buildOutput4();
 
     } catch (err) {
-        document.getElementById("result1").innerHTML = "Error: " + err.message;
+        document.getElementById("result2").innerHTML = "Error: " + err.message;
     }
+}
+
+// ------------------- OUTPUT 2 -------------------
+function nodeToRomaji(node){
+    if(node.nodeType === Node.TEXT_NODE){
+        return wanakana.toRomaji(node.textContent);
+    }
+    if(node.nodeType === Node.ELEMENT_NODE){
+        let tagStart = "&lt;" + node.nodeName.toLowerCase();
+        for(let attr of node.attributes){
+            tagStart += ` ${attr.name}="${escapeHTML(attr.value)}"`;
+        }
+        tagStart += "&gt;";
+        let children = Array.from(node.childNodes).map(nodeToRomaji).join("");
+        let tagEnd = "&lt;/" + node.nodeName.toLowerCase() + "&gt;";
+        return tagStart + children + tagEnd;
+    }
+    return "";
+}
+
+function buildOutput2() {
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = articleLines.join("\n");
+    const output2 = Array.from(wrapper.childNodes).map(nodeToRomaji).join("\n");
+
+    document.getElementById("result2").innerHTML = `
+        <h3>OUTPUT 2 — Versi Romaji (Tag Mentah)</h3>
+        <pre>${output2}</pre>
+    `;
+}
+
+// ------------------- OUTPUT 3 -------------------
+async function buildOutput3() {
+    async function translate(text){
+        try {
+            const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=id&dt=t&q=${encodeURIComponent(text)}`);
+            const data = await res.json();
+            return data[0].map(t => t[0]).join('');
+        } catch(e) {
+            return "(gagal translate)";
+        }
+    }
+
+    let promises = articleLines.map(async line => {
+        let textOnly = line.replace(/<[^>]+>/g, "").replace(/\n/g, " ").trim();
+        if(textOnly.length === 0) return "";
+        let terjemah = await translate(textOnly);
+        return `${textOnly}\n→ ${terjemah}`;
+    });
+
+    let output3Lines = await Promise.all(promises);
+
+    document.getElementById("result3").innerHTML = `
+        <h3>OUTPUT 3 — Terjemahan Indonesia Rapih</h3>
+        <pre>${output3Lines.filter(l => l).join("\n\n")}</pre>
+    `;
+}
+
+// ------------------- OUTPUT 4 -------------------
+function buildOutput4() {
+    if(!kuromojiTokenizer) {
+        document.getElementById("result4").innerHTML = "Kuromoji belum siap, tunggu sebentar...";
+        return;
+    }
+
+    let linesRomaji = articleLines.map(line => {
+        let textOnly = line.replace(/<[^>]+>/g, "").trim();
+        if(textOnly.length === 0) return "";
+
+        let tokens = kuromojiTokenizer.tokenize(textOnly);
+        let romajiLine = tokens.map(tok => {
+            let reading = tok.reading || tok.surface_form;
+            return wanakana.toRomaji(reading);
+        }).join(" ");
+
+        return `${textOnly}\n→ ${romajiLine}`;
+    });
+
+    document.getElementById("result4").innerHTML = `
+        <h3>OUTPUT 4 — Kanji diromaji-kan (Kuromoji + Wanakana)</h3>
+        <pre>${linesRomaji.filter(l => l).join("\n\n")}</pre>
+    `;
 }
 </script>
 
