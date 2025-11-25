@@ -84,3 +84,51 @@ async function scrapeBlog(url) {
         const doc = parser.parseFromString(htmlText, "text/html");
 
         const articles = doc.querySelectorAll(".box-article");
+        if (articles.length === 0) {
+            output.text("Tidak menemukan elemen <div class='box-article'>.");
+            return;
+        }
+
+        let result = "";
+        const total = articles.length;
+
+        for (let i = 0; i < total; i++) {
+            const htmlContent = fixImageLinks(articles[i].innerHTML);
+            const jpText = articles[i].innerText.trim();
+
+            // Update progress bar
+            progressBar.val(((i + 1) / total) * 100);
+
+            // Panggil Gemini langsung untuk romaji + terjemahan
+            const aiResult = await translateText(jpText);
+
+            const combined = `
+${htmlContent}
+${aiResult}
+---------------------------
+`;
+            result += combined;
+        }
+
+        output.text(result);
+        progressBar.val(0);
+
+    } catch (err) {
+        output.text("Error: " + err);
+    }
+}
+
+// Tombol Mulai Scrape
+$("#startBtn").click(() => {
+    const url = $("#blogUrl").val().trim();
+    if (url) scrapeBlog(url);
+});
+
+// Tombol Copy Output
+$("#copyBtn").click(() => {
+    const text = $("#output").text();
+    navigator.clipboard.writeText(text).then(() => alert("Copied!"));
+});
+</script>
+</body>
+</html>
