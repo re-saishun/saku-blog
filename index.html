@@ -4,11 +4,9 @@
 <meta charset="UTF-8">
 <title>Scraper Blog Sakurazaka46 (Tag Mentah + Terjemahan + Romaji)</title>
 <script src="https://unpkg.com/wanakana"></script>
-<!-- Bootstrap 5 CSS -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
 <style>
-/* --- Background Image & Centering --- */
 body {
     height: 100vh;
     margin: 0;
@@ -27,13 +25,12 @@ body::before {
     left:0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0,0,0,0.4); /* overlay gelap 40% */
+    background-color: rgba(0,0,0,0.4);
     z-index: 0;
 }
 
-/* --- Container --- */
 .container-scraper {
-    position: relative; /* di atas overlay */
+    position: relative;
     z-index: 1;
     max-width: 900px;
     width: 90%;
@@ -43,11 +40,9 @@ body::before {
     box-shadow: 0 8px 20px rgba(0,0,0,0.3);
 }
 
-/* --- Typography --- */
 h2 { margin-bottom: 20px; color: #0984e3; display: flex; justify-content: center;}
 h3 { margin-top: 30px; margin-bottom: 10px; color: #6c5ce7; }
 
-/* --- Input & Button --- */
 input {
     width: 100%;
     padding: 12px;
@@ -73,7 +68,6 @@ button {
 }
 button:hover { background: #019875; }
 
-/* --- Output Container --- */
 #resultFinal {
     background: #fff;
     border-radius: 12px;
@@ -86,23 +80,18 @@ pre {
     padding: 15px;
     border-radius: 8px;
     overflow-x: auto;
-    overflow-y: auto;      /* aktifkan scroll vertikal */
-    max-height: 600px;     /* tinggi maksimum kotak output */
+    overflow-y: auto;
+    max-height: 600px;
     white-space: pre-wrap;
     word-break: break-word;
     font-size: 14px;
     margin-top: 10px;
 }
-.text-danger
-    display: flex;
-    justify-content: center;
 
-/* Tombol copy di atas pre */
 #resultFinal button {
     margin-bottom: 10px;
 }
 
-/* Responsive */
 @media(max-width: 600px){
     input, button { font-size: 14px; padding: 10px; }
     pre { font-size: 13px; }
@@ -180,9 +169,6 @@ async function buildOutputFinal() {
         }
     }
 
-    // -----------------------------
-    // 1) Kumpulkan semua baris textOnly
-    // -----------------------------
     let textBlocks = [];
     let escapedBlocks = [];
 
@@ -199,42 +185,46 @@ async function buildOutputFinal() {
     }
 
     // -----------------------------
-    // 2) Buat 1 prompt saja untuk semua baris
+    // PROMPT JSON (Fix Output Kosong)
     // -----------------------------
     const prompt =
-`Berikut adalah kumpulan teks Jepang. Untuk setiap baris:
+`Saya memberikan daftar teks Jepang. Untuk setiap baris, berikan output dalam format JSON seperti berikut:
 
-1. Ubah ke ROMAJI (akurasi tinggi).
-2. Terjemahkan ke Bahasa Indonesia.
-3. Berikan hasil dengan format persis seperti ini:
+[
+  {
+    "romaji": "....",
+    "indo": "...."
+  }
+]
 
-ROMAJI: ....
-INDO: ....
+JANGAN beri teks di luar JSON.
 
-==========================`
+Daftar teks:
+${textBlocks.join("\n")}`;
 
-    + "\n"
-    + textBlocks.map((t, i) => `BARIS ${i+1}: ${t}`).join("\n");
-
-    // -----------------------------
-    // 3) Panggil Gemini (Hanya sekali)
-    // -----------------------------
     const aiOutput = await geminiCall(prompt);
 
     // -----------------------------
-    // 4) Parsing hasil Gemini
+    // PARSE JSON AI
     // -----------------------------
-    const lines = aiOutput.split(/BARIS \d+:/).slice(1);
+    let parsed = [];
+    try {
+        parsed = JSON.parse(aiOutput);
+    } catch (e) {
+        console.log("AI Output tidak sesuai JSON:", aiOutput);
+        alert("Gagal parse JSON. Periksa console.");
+        return;
+    }
 
-    const finalLines = lines.map((block, i) => {
-        const romaji = (block.match(/ROMAJI:\s*([\s\S]*?)INDO:/) || [,""])[1].trim();
-        const indo   = (block.match(/INDO:\s*([\s\S]*)/) || [,""])[1].trim();
-
-        return `${escapedBlocks[i]}\n${romaji}\n${indo}\n`;
+    // -----------------------------
+    // Gabungkan escaped + romaji + indo
+    // -----------------------------
+    const finalLines = parsed.map((obj, i) => {
+        return `${escapedBlocks[i]}\n${obj.romaji}\n${obj.indo}\n`;
     });
 
     // -----------------------------
-    // 5) Tampilkan output
+    // Tampilkan output
     // -----------------------------
     document.getElementById("resultFinal").innerHTML = `
         <h3 class="text-purple">OUTPUT — Jepang + Romaji + Terjemahan</h3>
@@ -247,14 +237,11 @@ INDO: ....
     document.getElementById("finalContent").textContent = finalLines.join("\n");
 }
 
-
-// Copy
 function copyFinal() {
     const content = document.getElementById("finalContent").textContent;
     navigator.clipboard.writeText(content)
         .then(() => alert("Copied!"));
 }
-
 </script>
 
 </body>
