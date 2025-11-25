@@ -2,25 +2,27 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Scraper Blog Sakurazaka46</title>
+<title>Scraper Blog Sakurazaka46 via Proxy</title>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    #output { width: 100%; height: 400px; overflow: auto; border: 1px solid #ccc; padding: 10px; white-space: pre-wrap; background: #f9f9f9; }
-    button { margin-bottom: 10px; }
+body { font-family: Arial, sans-serif; margin: 20px; }
+#output { width: 100%; height: 500px; overflow: auto; border: 1px solid #ccc; padding: 10px; white-space: pre-wrap; background: #f9f9f9; }
+button { margin-bottom: 10px; }
 </style>
 </head>
 <body>
 
-<h2>Scraper Blog Sakurazaka46</h2>
+<h2>Scraper Blog Sakurazaka46 (via Proxy)</h2>
+<input type="text" id="blogUrl" placeholder="Masukkan URL blog" style="width: 80%;" />
+<button id="startBtn">Mulai Scrape</button>
 <button id="copyBtn">Copy Output</button>
-<div id="output">Loading...</div>
+<div id="output">Hasil akan muncul di sini...</div>
 
 <script>
 const API_KEY = "AIzaSyD9HGZ6pIVouEgiaTS_dFnVod-kafD0RWk"; // Gemini API Key
+const PROXY = "https://cors-proxy1.vercel.app/"; // Proxy untuk menghindari CORS
 
 async function translateText(text) {
-    // Panggilan AI Gemini API untuk romaji + terjemahan
     const prompt = `Ubah teks Jepang berikut menjadi 2 baris: 
 1. Romaji (kana + kanji)
 2. Terjemahan Indonesia
@@ -32,57 +34,67 @@ Teks: ${text}`;
             "Content-Type": "application/json",
             "Authorization": `Bearer ${API_KEY}`
         },
-        body: JSON.stringify({
-            "instances": [{"content": prompt}]
-        })
+        body: JSON.stringify({ "instances": [{"content": prompt}] })
     });
     const data = await response.json();
-    // Ambil teks AI
     return data.predictions?.[0]?.content || "";
 }
 
 function fixImageLinks(html) {
-    // Tambah prefix untuk gambar yang relatif
     return html.replace(/<img\s+[^>]*src="(?!https?:\/\/)([^"]+)"/g, '<img src="https://sakurazaka46.com/$1"');
 }
 
-async function scrapeAndTranslate() {
+async function scrapeBlog(url) {
     const output = $("#output");
     output.text("Loading...");
-    
-    // Ambil semua box-article
-    const articles = $(".box-article");
-    let result = "";
 
-    for (let i = 0; i < articles.length; i++) {
-        const htmlContent = fixImageLinks(articles[i].innerHTML);
-        
-        // Ambil teks Jepang asli saja
-        const jpText = $(articles[i]).text().trim();
+    try {
+        // Ambil HTML via proxy
+        const res = await fetch(PROXY + url);
+        const htmlText = await res.text();
 
-        // Panggil AI untuk romaji + terjemahan
-        const aiResult = await translateText(jpText);
+        // Buat DOM parser
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlText, "text/html");
 
-        // Gabungkan full HTML + AI result
-        const combined = `
+        const articles = doc.querySelectorAll(".box-article");
+        if (articles.length === 0) {
+            output.text("Tidak menemukan elemen <div class='box-article'>.");
+            return;
+        }
+
+        let result = "";
+
+        for (let i = 0; i < articles.length; i++) {
+            const htmlContent = fixImageLinks(articles[i].innerHTML);
+            const jpText = articles[i].innerText.trim();
+
+            const aiResult = await translateText(jpText);
+
+            const combined = `
 ${htmlContent}
 ${aiResult}
 ---------------------------
 `;
-        result += combined;
-    }
+            result += combined;
+        }
 
-    output.text(result);
+        output.text(result);
+
+    } catch (err) {
+        output.text("Error: " + err);
+    }
 }
 
-// Tombol copy
+$("#startBtn").click(() => {
+    const url = $("#blogUrl").val().trim();
+    if (url) scrapeBlog(url);
+});
+
 $("#copyBtn").click(() => {
     const text = $("#output").text();
     navigator.clipboard.writeText(text).then(() => alert("Copied!"));
 });
-
-// Jalankan scrape
-$(document).ready(scrapeAndTranslate);
 </script>
 </body>
 </html>
