@@ -50,7 +50,7 @@ pre {
 let articleLines = [];
 
 /* ============================================================
-   SCRAPER — menggunakan corsproxy.io (AMANKAN CORS)
+   SCRAPER — menggunakan CORS PROXY VERCEL
 ============================================================ */
 async function scrape() {
     const url = document.getElementById("urlInput").value;
@@ -60,7 +60,10 @@ async function scrape() {
         `<div class="text-secondary">Mengambil data...</div>`;
 
     try {
-        const proxyURL = "https://corsproxy.io/?" + encodeURIComponent(url);
+        const proxyURL =
+            "https://cors-proxy1.vercel.app/api/proxy?url=" +
+            encodeURIComponent(url);
+
         const res = await fetch(proxyURL);
         const htmlText = await res.text();
 
@@ -68,6 +71,7 @@ async function scrape() {
         const doc = parser.parseFromString(htmlText, "text/html");
 
         const article = doc.querySelector("div.box-article");
+
         if (!article) {
             document.getElementById("resultFinal").innerHTML =
                 `<div class="text-danger">Gagal menemukan box-article</div>`;
@@ -122,13 +126,11 @@ async function geminiCall(prompt) {
 ============================================================ */
 async function buildOutputFinal() {
 
-    // 1) Kumpulkan block teks
     let escapedBlocks = [];
     let textBlocks = [];
 
     for (let line of articleLines) {
 
-        // escape semua tag HTML
         const escaped = line
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;");
@@ -140,13 +142,12 @@ async function buildOutputFinal() {
         textBlocks.push(textOnly);
     }
 
-    // 2) Prompt untuk AI (sekali saja)
     const prompt =
 `Berikut daftar kalimat Jepang.
 Untuk setiap BARIS:
 - Hasilkan ROMAJI secara akurat.
 - Hasilkan TERJEMAH ke Bahasa Indonesia.
-Format **WAJIB**:
+Format:
 
 ROMAJI: ...
 INDO: ...
@@ -155,7 +156,6 @@ INDO: ...
 
 ` + textBlocks.map((t,i)=>`BARIS ${i+1}: ${t}`).join("\n");
 
-    // 3) Panggil Gemini sekali saja
     const ai = await geminiCall(prompt);
 
     if (!ai.candidates) {
@@ -166,10 +166,8 @@ INDO: ...
 
     const aiText = ai.candidates[0].content.parts[0].text;
 
-    // Pecah berdasarkan BARIS n:
     const blocks = aiText.split(/BARIS \d+:/).slice(1);
 
-    // 4) Gabungkan hasil
     const final = blocks.map((blk, i) => {
         const romaji = (blk.match(/ROMAJI:\s*([\s\S]*?)INDO:/) || ["",""])[1].trim();
         const indo   = (blk.match(/INDO:\s*([\s\S]*)/) || ["",""])[1].trim();
@@ -177,7 +175,6 @@ INDO: ...
         return `${escapedBlocks[i]}\n${romaji}\n${indo}\n`;
     });
 
-    // 5) Render ke halaman
     document.getElementById("resultFinal").innerHTML = `
         <h3 class="text-purple">OUTPUT — Tag Mentah + Romaji + Terjemahan</h3>
         <button class="btn btn-primary mb-3" onclick="copyFinal()">Copy</button>
