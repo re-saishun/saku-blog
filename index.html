@@ -6,53 +6,58 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <style>
 body { font-family: Arial, sans-serif; margin: 20px; }
+#progressContainer { width: 80%; margin-bottom: 10px; }
 #output { width: 100%; height: 500px; overflow: auto; border: 1px solid #ccc; padding: 10px; white-space: pre-wrap; background: #f9f9f9; }
 button { margin-bottom: 10px; }
-input { margin-bottom: 10px; padding: 5px; }
+input { margin-bottom: 10px; padding: 5px; width: 80%; }
 </style>
 </head>
 <body>
 
 <h2>Scraper Blog Sakurazaka46 (via Proxy)</h2>
-<input type="text" id="blogUrl" placeholder="Masukkan URL blog" style="width: 80%;" />
+<input type="text" id="blogUrl" placeholder="Masukkan URL blog" />
 <br/>
+<div id="progressContainer">
+  <progress id="progressBar" value="0" max="100" style="width: 100%;"></progress>
+</div>
 <button id="startBtn">Mulai Scrape</button>
 <button id="copyBtn">Copy Output</button>
 <div id="output">Hasil akan muncul di sini...</div>
 
 <script>
-const API_KEY = "AIzaSyD9HGZ6pIVouEgiaTS_dFnVod-kafD0RWk"; // Gemini API Key
-const PROXY = "https://cors-proxy1.vercel.app/api/proxy?url="; // Proxy Vercel
+const PROXY_BLOG = "https://cors-proxy1.vercel.app/api/proxy?url=";        // Proxy untuk blog
+const PROXY_TRANSLATE = "https://cors-proxy1.vercel.app/api/translate";   // Proxy untuk AI Gemini
 
+// Fetch terjemahan melalui proxy server (menghindari CORS)
 async function translateText(text) {
-    const prompt = `Ubah teks Jepang berikut menjadi 2 baris: 
-1. Romaji (kana + kanji)
-2. Terjemahan Indonesia
-Teks: ${text}`;
-    
-    const response = await fetch("https://gemini.googleapis.com/v1/models/text-bison-001:predict", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${API_KEY}`
-        },
-        body: JSON.stringify({ "instances": [{"content": prompt}] })
-    });
-    const data = await response.json();
-    return data.predictions?.[0]?.content || "";
+    try {
+        const res = await fetch(PROXY_TRANSLATE, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+        return data.predictions?.[0]?.content || "[Terjemahan gagal]";
+    } catch (err) {
+        console.error(err);
+        return "[Terjemahan gagal]";
+    }
 }
 
+// Perbaiki link gambar relatif
 function fixImageLinks(html) {
     return html.replace(/<img\s+[^>]*src="(?!https?:\/\/)([^"]+)"/g, '<img src="https://sakurazaka46.com/$1"');
 }
 
+// Fungsi utama scraping blog
 async function scrapeBlog(url) {
     const output = $("#output");
+    const progressBar = $("#progressBar");
     output.text("Loading...");
+    progressBar.val(0);
 
     try {
-        // Encode URL sebelum dikirim ke proxy
-        const proxyUrl = PROXY + encodeURIComponent(url);
+        const proxyUrl = PROXY_BLOG + encodeURIComponent(url);
         const res = await fetch(proxyUrl);
         if (!res.ok) throw new Error("Failed to fetch blog via proxy");
 
@@ -67,12 +72,16 @@ async function scrapeBlog(url) {
         }
 
         let result = "";
+        const total = articles.length;
 
-        for (let i = 0; i < articles.length; i++) {
+        for (let i = 0; i < total; i++) {
             const htmlContent = fixImageLinks(articles[i].innerHTML);
             const jpText = articles[i].innerText.trim();
 
-            // Panggil AI Gemini hanya untuk romaji + terjemahan
+            // Update progress bar
+            progressBar.val(((i + 1) / total) * 100);
+
+            // Dapatkan romaji + terjemahan dari proxy translate
             const aiResult = await translateText(jpText);
 
             const combined = `
@@ -84,6 +93,7 @@ ${aiResult}
         }
 
         output.text(result);
+        progressBar.val(0); // reset setelah selesai
 
     } catch (err) {
         output.text("Error: " + err);
