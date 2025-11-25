@@ -14,7 +14,7 @@ input { margin-bottom: 10px; padding: 5px; width: 80%; }
 </head>
 <body>
 
-<h2>Scraper Blog Sakurazaka46 (via Proxy)</h2>
+<h2>Scraper Blog Sakurazaka46 (via API Key langsung)</h2>
 <input type="text" id="blogUrl" placeholder="Masukkan URL blog" />
 <br/>
 <div id="progressContainer">
@@ -25,19 +25,37 @@ input { margin-bottom: 10px; padding: 5px; width: 80%; }
 <div id="output">Hasil akan muncul di sini...</div>
 
 <script>
-const PROXY_BLOG = "https://cors-proxy1.vercel.app/api/proxy?url=";        // Proxy untuk blog
-const PROXY_TRANSLATE = "https://cors-proxy1.vercel.app/api/translate";   // Proxy untuk AI Gemini
+const PROXY_BLOG = "https://cors-proxy1.vercel.app/api/proxy?url="; // Proxy blog tetap bisa digunakan
+const GEMINI_API_KEY = "AIzaSyD9HGZ6pIVouEgiaTS_dFnVod-kafD0RWk"; // Masukkan API Key kamu di sini
 
-// Fetch terjemahan melalui proxy server (menghindari CORS)
+// Panggil Gemini langsung dari browser (untuk testing)
 async function translateText(text) {
     try {
-        const res = await fetch(PROXY_TRANSLATE, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text })
-        });
-        const data = await res.json();
-        return data.predictions?.[0]?.content || "[Terjemahan gagal]";
+        const paragraphs = text.split(/\n{2,}/).filter(p => p.trim().length > 0);
+        let result = "";
+
+        for (const para of paragraphs) {
+            const res = await fetch("https://gemini.googleapis.com/v1/models/text-bison-001:predict", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${GEMINI_API_KEY}`
+                },
+                body: JSON.stringify({ instances: [{ content: `Ubah teks Jepang berikut menjadi 2 baris:\n1. Romaji (kana + kanji)\n2. Terjemahan Indonesia\nTeks: ${para}` }] })
+            });
+
+            if (!res.ok) {
+                console.error("Translate error for paragraph:", para);
+                result += "[Terjemahan gagal]\n";
+                continue;
+            }
+
+            const data = await res.json();
+            result += (data.predictions?.[0]?.content || "[Terjemahan gagal]") + "\n";
+        }
+
+        return result.trim();
+
     } catch (err) {
         console.error(err);
         return "[Terjemahan gagal]";
@@ -66,51 +84,3 @@ async function scrapeBlog(url) {
         const doc = parser.parseFromString(htmlText, "text/html");
 
         const articles = doc.querySelectorAll(".box-article");
-        if (articles.length === 0) {
-            output.text("Tidak menemukan elemen <div class='box-article'>.");
-            return;
-        }
-
-        let result = "";
-        const total = articles.length;
-
-        for (let i = 0; i < total; i++) {
-            const htmlContent = fixImageLinks(articles[i].innerHTML);
-            const jpText = articles[i].innerText.trim();
-
-            // Update progress bar
-            progressBar.val(((i + 1) / total) * 100);
-
-            // Dapatkan romaji + terjemahan dari proxy translate
-            const aiResult = await translateText(jpText);
-
-            const combined = `
-${htmlContent}
-${aiResult}
----------------------------
-`;
-            result += combined;
-        }
-
-        output.text(result);
-        progressBar.val(0); // reset setelah selesai
-
-    } catch (err) {
-        output.text("Error: " + err);
-    }
-}
-
-// Tombol Mulai Scrape
-$("#startBtn").click(() => {
-    const url = $("#blogUrl").val().trim();
-    if (url) scrapeBlog(url);
-});
-
-// Tombol Copy Output
-$("#copyBtn").click(() => {
-    const text = $("#output").text();
-    navigator.clipboard.writeText(text).then(() => alert("Copied!"));
-});
-</script>
-</body>
-</html>
