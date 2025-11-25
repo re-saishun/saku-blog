@@ -47,12 +47,11 @@ pre {
 </div>
 
 <script>
-// Fungsi untuk scrape artikel
+// Fungsi utama scrape dan terjemahkan
 async function scrape() {
     const url = document.getElementById('urlInput').value;
     if (!url) return alert('Masukkan URL blog dulu!');
 
-    // Tampilkan loading
     const resultDiv = document.getElementById('resultFinal');
     resultDiv.innerHTML = `
         <div class="progress mb-2">
@@ -62,20 +61,20 @@ async function scrape() {
     `;
 
     try {
-        // Fetch halaman
+        // Ambil HTML
         const res = await fetch(url);
         if (!res.ok) throw new Error('Gagal ambil halaman');
         let htmlText = await res.text();
 
-        // Buat DOM parser
+        // Parser HTML
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlText, 'text/html');
 
-        // Cari semua box-article
+        // Ambil semua box-article
         const articles = Array.from(doc.querySelectorAll('.box-article'));
         if (articles.length === 0) throw new Error('Tidak ada <div class="box-article"> ditemukan');
 
-        // Simpan isi artikel di memory browser
+        // Simpan isi di session storage
         const articleContents = articles.map(div => div.innerHTML);
         sessionStorage.setItem('scrapedArticles', JSON.stringify(articleContents));
 
@@ -89,39 +88,57 @@ async function scrape() {
                  style="width: 100%">Mengirim ke AI untuk diterjemahkan...</div>
         </div>`;
 
-        // Kirim ke Gemini AI (pseudo, sesuaikan API sebenarnya)
+        // Terjemahkan tiap artikel
         const translatedArticles = [];
         for (let html of fixedArticles) {
-            const plainText = html.replace(/<[^>]+>/g, '\n'); // Ambil teks saja
+            const plainText = html.replace(/<[^>]+>/g, '\n'); // hanya teks
 
-            // Contoh prompt hemat kuota:
             const prompt = `
-Terjemahkan teks berikut dari Jepang ke Indonesia per kata per baris.
-Format: 
-1. Kata Jepang asli
+Terjemahkan teks Jepang ke bahasa Indonesia per kata per baris.
+Format output:
+1. Kata Jepang
 2. Romaji
 3. Terjemahan
 Tetap pertahankan line break.
 Teks: ${plainText}
             `;
 
-            // Panggil API Gemini (contoh pseudocode, ganti dengan implementasi nyata)
-            const aiRes = await fakeGeminiTranslate(prompt);
+            const aiRes = await callGeminiAPI(prompt);
             translatedArticles.push(aiRes);
         }
 
         // Tampilkan hasil
         resultDiv.innerHTML = translatedArticles.map(tr => `<pre>${tr}</pre>`).join('<hr>');
+
     } catch (err) {
         resultDiv.innerHTML = `<div class="text-danger">Error: ${err.message}</div>`;
     }
 }
 
-// Pseudo-fungsi Gemini, ganti dengan panggilan API asli
-async function fakeGeminiTranslate(prompt) {
-    // Simulasi delay
-    await new Promise(r => setTimeout(r, 1000));
-    return prompt.split('\n').map(l => l || '').join('\n'); // balikkan sebagai dummy
+// Panggil Gemini API Google
+async function callGeminiAPI(prompt) {
+    const apiKey = 'AIzaSyD9HGZ6pIVouEgiaTS_dFnVod-kafD0RWk'; // jangan share publik
+    const endpoint = 'https://us-central1-aiplatform.googleapis.com/v1/projects/YOUR_PROJECT_ID/locations/us-central1/publishers/google/models/text-bison-001:predict';
+
+    const payload = {
+        instances: [
+            {
+                content: prompt
+            }
+        ]
+    };
+
+    const res = await fetch(endpoint + `?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) throw new Error('Terjadi error API');
+
+    const data = await res.json();
+    // Ambil hasil text saja, tergantung response Gemini
+    return data?.predictions?.[0]?.content || 'Tidak ada hasil';
 }
 </script>
 
