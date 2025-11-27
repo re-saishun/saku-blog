@@ -112,14 +112,17 @@ pre {
 <script>
 let articleLines = [];
 
-// ------------------- Scrape -------------------
+/* =====================
+   SCRAPE
+=====================*/
 async function scrape() {
     const url = document.getElementById("urlInput").value;
     if (!url) return alert("Masukkan URL dulu!");
-    document.getElementById("resultFinal").innerHTML = `<div class="text-secondary">Mengambil data...</div>`;
+
+    document.getElementById("resultFinal").innerHTML =
+        `<div class="text-secondary">Mengambil data...</div>`;
 
     try {
-        // pakai proxy cors-proxy1.vercel.app
         const proxyURL = "https://cors-proxy1.vercel.app/api/fetch?url=" + encodeURIComponent(url);
         const res = await fetch(proxyURL);
         const htmlText = await res.text();
@@ -127,91 +130,117 @@ async function scrape() {
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlText, "text/html");
         const article = doc.querySelector("div.box-article");
+
         if (!article) {
-            document.getElementById("resultFinal").innerHTML = `<div class="text-danger">Tidak menemukan box-article</div>`;
+            document.getElementById("resultFinal").innerHTML =
+                `<div class="text-danger">Tidak menemukan box-article</div>`;
             return;
         }
 
-        let html = article.innerHTML;
-        html = html.replace(/<img\s+src="(\/[^"]*)"/g, '<img src="https://sakurazaka46.com$1"');
+        // perbaiki src image relatif
+        let html = article.innerHTML.replace(/src="\/([^"]*)"/g, 'src="https://sakurazaka46.com/$1"');
 
-        articleLines = html
-            .split(/(<br\s*\/?>)/i)
-            .map(line => line.trim())
-            .filter(line => line.length > 0);
+        // pecah berdasarkan <br> tetapi TAG TIDAK DIHAPUS
+        articleLines = html.split(/(<br\s*\/?>)/i).filter(l => l.trim().length > 0);
 
         await buildOutputFinal();
 
     } catch (err) {
-        document.getElementById("resultFinal").innerHTML = `<div class="text-danger">Error: ${err.message}</div>`;
+        document.getElementById("resultFinal").innerHTML =
+            `<div class="text-danger">Error: ${err.message}</div>`;
     }
 }
 
-// ------------------- OUTPUT FINAL (batch via proxy) -------------------
-async function buildOutputFinal() {
+/* =====================
+   GEMINI CALL FIX
+=====================*/
+async function geminiCall(prompt) {
+    try {
+        const res = await fetch("https://cors-proxy1.vercel.app/api/gemini", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt })
+        });
 
-    async function geminiCall(prompt) {
-        try {
-            // proxy Gemini via cors-proxy1
-            const proxyURL = "https://cors-proxy1.vercel.app/api/gemini";
-            const res = await fetch(proxyURL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ prompt })
-            });
-            const data = await res.json();
-            return data.text || "(error AI)";
-        } catch (err) {
-            return "(error AI)";
-        }
+        const data = await res.json();
+
+        // extractor FORMAT BARU GEMINI 2.x
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        return text || "(AI-gagal)";
+    } catch (err) {
+        return "(AI-gagal)";
     }
+}
 
-    const finalLines = [];
-    const batchSize = 10; // jumlah baris per request
+/* =====================
+   BUILD OUTPUT — Tag asli dipertahankan!!
+=====================*/
+async function buildOutputFinal() {
+    const finalOut = [];
 
-    for (let i = 0; i < articleLines.length; i += batchSize) {
-        const batch = articleLines.slice(i, i + batchSize)
-            .map(l => l.replace(/<[^>]+>/g, "").trim())
-            .filter(l => l.length > 0)
-            .join("\n");
+    for (let raw of articleLines) {
+        let original = raw;           // versi asli (ada tag)
+        let clean = raw.replace(/<[^>]+>/g, "").trim(); // teks murni
 
-        if (!batch) continue;
+        // kalau tidak ada huruf Jepang → jangan diproses AI
+        if (!/[\u3040-\u30ff\u4e00-\u9faf]/.test(clean)) {
+            finalOut.push(original);
+            continue;
+        }
 
+        // Prompt AI
         const prompt = `
-Ubah teks Jepang berikut menjadi ROMAJI dan TERJEMAHAN bahasa Indonesia. Terjemahannya dengan konteks semua informasi dari isi blognya, dengan bahasa yang tidak terlalu kaku, sdikit kasual tapi masih enak dibaca
-Format output:
+Konversikan teks Jepang berikut menjadi ROMAJI dan TERJEMAHAN Indonesia.
+Sangat penting: Jangan ubah kalimat. Jangan tambahkan kata lain.
+Jawab ringkas sesuai format.
+
 ROMAJI:
 <romaji>
 TERJEMAHAN:
 <terjemahan>
 
 Teks:
-${batch}
+${clean}
 `;
 
-        const result = await geminiCall(prompt);
+        const ai = await geminiCall(prompt);
 
-        const entries = result.split(/\n(?=ROMAJI:|TERJEMAHAN:)/)
-                              .map(s => s.trim())
-                              .filter(s => s.length > 0);
+        // parsing
+        let romaji = ai.match(/ROMAJI:\s*([\s\S]*?)TERJEMAHAN:/);
+        let indo   = ai.match(/TERJEMAHAN:\s*([\s\S]*)/);
 
-        finalLines.push(...entries);
+        romaji = romaji ? romaji[1].trim() : "";
+        indo   = indo ? indo[1].trim() : "";
+
+        // sisipkan setelah teks Jepang tetapi TAG original tetap utuh
+        const merged = `
+${original}
+<span class="romaji">[ROMAJI] ${romaji}</span><br>
+<span class="indo">[ID] ${indo}</span><br>
+`;
+
+        finalOut.push(merged);
     }
 
     document.getElementById("resultFinal").innerHTML = `
-        <h3 class="text-purple">OUTPUT — Romaji + Terjemahan</h3>
+        <h3 class="text-purple">OUTPUT — HTML Tag Tetap</h3>
         <button onclick="copyFinal()" class="btn btn-primary mb-2">Copy</button>
         <div class="card p-3">
             <pre id="finalContent" class="mb-0"></pre>
         </div>
     `;
-    document.getElementById("finalContent").textContent = finalLines.join("\n\n");
+
+    document.getElementById("finalContent").textContent =
+        finalOut.join("\n");
 }
 
-// Copy
+/* =====================
+   COPY
+=====================*/
 function copyFinal() {
-    const content = document.getElementById("finalContent").textContent;
-    navigator.clipboard.writeText(content).then(() => alert("Copied!"));
+    navigator.clipboard.writeText(
+        document.getElementById("finalContent").textContent
+    ).then(() => alert("Copied!"));
 }
 </script>
 
