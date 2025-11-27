@@ -147,10 +147,13 @@ button:hover { background: #019875; }
   <h2>SAKAMICHI ARTICLE GRABBER</h2>
   <input id="urlInput" placeholder="Tempel link blog Sakurazaka46 di sini">
   <button onclick="scrape()">Ambil Artikel</button>
-  <div id="loadingAI">
-    <div class="spinner"></div>
-    Menerjemahkan... mohon tunggu sebentar ya 💫
+  <div id="loadingAI" style="display:none; text-align:center; margin:10px 0;">
+    <div id="progressText">0%</div>
+    <div id="progressBarBg" style="width:100%; background:#ddd; height:8px; border-radius:4px; margin-top:5px;">
+        <div id="progressBar" style="width:0%; height:8px; background:#6c5ce7; border-radius:4px;"></div>
+    </div>
 </div>
+
 
 <div id="resultFinal"></div>
 
@@ -277,9 +280,36 @@ ${original}
         </div>
     `;
 
-    hideLoading(); // ← hilangkan loading
-    document.getElementById("finalContent").textContent = finalOut.join("\n");
+
+  let progressInterval = null;
+
+function showLoading() {
+    const wrapper = document.getElementById("loadingAI");
+    wrapper.style.display = "block";
+
+    let p = 0;
+
+    document.getElementById("progressText").textContent = "0%";
+    document.getElementById("progressBar").style.width = "0%";
+
+    progressInterval = setInterval(() => {
+        if (p >= 100) return;
+        p++;
+        document.getElementById("progressText").textContent = p + "%";
+        document.getElementById("progressBar").style.width = p + "%";
+    }, 80); // kecepatan
 }
+
+function hideLoading() {
+    clearInterval(progressInterval);
+    document.getElementById("progressText").textContent = "100%";
+    document.getElementById("progressBar").style.width = "100%";
+
+    setTimeout(() => {
+        document.getElementById("loadingAI").style.display = "none";
+    }, 400); // delay kecil biar terlihat 100%
+}
+
 
 function copyFinal() {
     navigator.clipboard.writeText(
