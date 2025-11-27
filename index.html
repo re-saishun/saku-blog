@@ -9,7 +9,7 @@
 <style>
 /* --- Background Image & Centering --- */
 body {
-    height: 100vh;
+    height: 100%;
     margin: 0;
     display: flex;
     align-items: center;
@@ -70,29 +70,46 @@ button {
 }
 button:hover { background: #019875; }
 
-#resultFinal {
-    background: #fff;
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+.text-danger { display: flex; justify-content: center; }
+
+/* Output Container */
+#outputWrapper {
+    position: relative;
 }
 
-pre {
+/* Tombol Full Size */
+#fullBtn {
+    width: 100%;
+    padding: 8px 12px;
+    background: #6c5ce7;
+    border: none;
+    color: white;
+    border-radius: 8px;
+    margin-top: 8px;
+    cursor: pointer;
+}
+#fullBtn:hover {
+    background: #5b4ad6;
+}
+
+/* PRE BOX KECIL DENGAN FULL MODE */
+#finalContent {
     background: #f1f2f6;
     padding: 15px;
     border-radius: 8px;
     overflow-x: auto;
     overflow-y: auto;
-    max-height: 600px;
+    max-height: 200px;            /* KOTAK KECIL */
     white-space: pre-wrap;
     word-break: break-word;
     font-size: 14px;
-    margin-top: 10px;
+    transition: max-height 0.25s ease;
 }
 
-.text-danger { display: flex; justify-content: center; }
-
-#resultFinal button { margin-bottom: 10px; }
+/* FULLSCREEN MODE */
+#finalContent.full {
+    max-height: 80vh;             /* BESAR LAYAR */
+}
 
 @media(max-width: 600px){
     input, button { font-size: 14px; padding: 10px; }
@@ -173,7 +190,7 @@ async function geminiCall(prompt) {
 }
 
 /* =====================
-   BUILD OUTPUT — Tag asli dipertahankan!!
+   BUILD OUTPUT
 =====================*/
 async function buildOutputFinal() {
     const finalOut = [];
@@ -188,7 +205,6 @@ async function buildOutputFinal() {
             continue;
         }
 
-        // Prompt AI
         const prompt = `
 Konversikan teks Jepang berikut menjadi ROMAJI dan TERJEMAHAN Indonesia.
 Sangat penting: Jangan ubah kalimat. Jangan tambahkan kata lain.
@@ -205,14 +221,12 @@ ${clean}
 
         const ai = await geminiCall(prompt);
 
-        // parsing
         let romaji = ai.match(/ROMAJI:\s*([\s\S]*?)TERJEMAHAN:/);
         let indo   = ai.match(/TERJEMAHAN:\s*([\s\S]*)/);
 
         romaji = romaji ? romaji[1].trim() : "";
         indo   = indo ? indo[1].trim() : "";
 
-        // sisipkan setelah teks Jepang tetapi TAG original tetap utuh
         const merged = `
 ${original}
 <span class="romaji">[ROMAJI] ${romaji}</span><br>
@@ -223,15 +237,16 @@ ${original}
     }
 
     document.getElementById("resultFinal").innerHTML = `
-        <h3 class="text-purple">OUTPUT — HTML Tag Tetap</h3>
+        <h3 class="text-purple">OUTPUTnya, Silakan sayang~~ </h3>
         <button onclick="copyFinal()" class="btn btn-primary mb-2">Copy</button>
-        <div class="card p-3">
-            <pre id="finalContent" class="mb-0"></pre>
+
+        <div id="outputWrapper">
+            <pre id="finalContent" class="mb-1"></pre>
+            <button id="fullBtn" onclick="toggleFull()">Full Size</button>
         </div>
     `;
 
-    document.getElementById("finalContent").textContent =
-        finalOut.join("\n");
+    document.getElementById("finalContent").textContent = finalOut.join("\n");
 }
 
 /* =====================
@@ -241,6 +256,20 @@ function copyFinal() {
     navigator.clipboard.writeText(
         document.getElementById("finalContent").textContent
     ).then(() => alert("Copied!"));
+}
+
+/* =====================
+   FULL SIZE TOGGLE
+=====================*/
+function toggleFull() {
+    const box = document.getElementById("finalContent");
+    const btn = document.getElementById("fullBtn");
+
+    box.classList.toggle("full");
+
+    btn.textContent = box.classList.contains("full")
+        ? "Kecilkan"
+        : "Full Size";
 }
 </script>
 
