@@ -227,53 +227,67 @@ async function geminiCall(prompt) {
 =====================*/
 async function buildOutputFinal() {
     const finalOut = [];
-    showLoading();  // ← tampilkan loading
+    showLoading();
 
-    for (let raw of articleLines) {
-        let original = raw;           // versi asli (ada tag)
-        let clean = raw.replace(/<[^>]+>/g, "").trim(); // teks murni
-
-        // kalau tidak ada huruf Jepang → jangan diproses AI
-        if (!/[\u3040-\u30ff\u4e00-\u9faf]/.test(clean)) {
-            finalOut.push(original);
-            continue;
+    // 1. Filter baris yang hanya mengandung teks Jepang untuk diproses
+    const tasks = [];
+    for (let i = 0; i < articleLines.length; i++) {
+        let clean = articleLines[i].replace(/<[^>]+>/g, "").trim();
+        if (/[\u3040-\u30ff\u4e00-\u9faf]/.test(clean)) {
+            tasks.push({ index: i, text: clean });
         }
-
-        const prompt = `
-Konversikan teks Jepang berikut menjadi ROMAJI dan TERJEMAHAN Indonesia.
-Sangat penting: Jangan ubah kalimat. Jangan tambahkan kata lain.
-Jawab ringkas sesuai format.
-
-ROMAJI:
-<romaji>
-TERJEMAHAN:
-<terjemahan>
-
-Teks:
-${clean}
-`;
-
-        const ai = await geminiCall(prompt);
-
-        let romaji = ai.match(/ROMAJI:\s*([\s\S]*?)TERJEMAHAN:/);
-        let indo   = ai.match(/TERJEMAHAN:\s*([\s\S]*)/);
-
-        romaji = romaji ? romaji[1].trim() : "";
-        indo   = indo ? indo[1].trim() : "";
-
-        const merged = `
-${original}
-<br><span class="romaji">[ROMAJI] ${romaji}</span>
-<br><span class="indo">[ID] ${indo}</span>
-`;
-
-        finalOut.push(merged);
     }
 
-            document.getElementById("resultFinal").innerHTML = `
+    // 2. Kirim dalam Batch (Misal: 1 batch berisi 15 baris teks)
+    // Ini jauh lebih hemat limit daripada kirim satu-satu
+    const batchSize = 15; 
+    const resultsMap = {};
+
+    for (let i = 0; i < tasks.length; i += batchSize) {
+        const batch = tasks.slice(i, i + batchSize);
+        const batchPrompt = `
+Convert these Japanese lines into ROMAJI and INDONESIAN.
+Format: [Index] | [Romaji] | [Translation]
+Strictly follow the order and do not skip any index.
+
+Lines to convert:
+${batch.map(t => `${t.index} | ${t.text}`).join('\n')}
+`;
+
+        try {
+            const aiResponse = await geminiCall(batchPrompt);
+            const responseLines = aiResponse.split('\n');
+
+            responseLines.forEach(line => {
+                const parts = line.split('|');
+                if (parts.length >= 3) {
+                    const idx = parts[0].trim();
+                    resultsMap[idx] = {
+                        romaji: parts[1].trim(),
+                        indo: parts[2].trim()
+                    };
+                }
+            });
+        } catch (e) {
+            console.error("Gagal memproses batch ini", e);
+        }
+    }
+
+    // 3. Rekonstruksi hasil akhir
+    for (let i = 0; i < articleLines.length; i++) {
+        const original = articleLines[i];
+        if (resultsMap[i]) {
+            const merged = `${original}\n<br><span class="romaji">[ROMAJI] ${resultsMap[i].romaji}</span>\n<br><span class="indo">[ID] ${resultsMap[i].indo}</span>`;
+            finalOut.push(merged);
+        } else {
+            finalOut.push(original);
+        }
+    }
+
+    // 4. Tampilkan Hasil
+    document.getElementById("resultFinal").innerHTML = `
         <h3 class="text-purple">OUTPUTnya, Silakan sayang~~ </h3>
         <button onclick="copyFinal()" class="btn btn-primary mb-2">Copy</button>
-
         <div id="outputWrapper">
             <pre id="finalContent" class="mb-1"></pre>
             <button id="fullBtn" onclick="toggleFull()">Full Size</button>
@@ -282,10 +296,7 @@ ${original}
 
     hideLoading();  
     document.getElementById("finalContent").textContent = finalOut.join("\n");
-}   // ← ← PENUTUP buildOutputFinal() YANG HILANG !!!
-/*  =============================
-    END OF buildOutputFinal()
-    ============================= */
+}
 
 
 /* =====================
