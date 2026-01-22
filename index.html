@@ -9,64 +9,64 @@
 <style>
 /* --- Background Image & Centering --- */
 body {
-    min-height: 100vh;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: url('https://github.com/ReMineral/saku-blog/blob/main/5th_TOUR_2025%2013.jpg?raw=true') center/cover no-repeat;
-    position: relative;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    min-height: 100vh;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: url('https://github.com/ReMineral/saku-blog/blob/main/5th_TOUR_2025%2013.jpg?raw=true') center/cover no-repeat;
+    position: relative;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 body::before {
-    content: "";
-    position: absolute;
-    top:0;
-    left:0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.4);
-    z-index: 0;
+    content: "";
+    position: absolute;
+    top:0;
+    left:0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.4);
+    z-index: 0;
 }
 
 /* --- Container --- */
 .container-scraper {
-    position: relative;
-    z-index: 1;
-    max-width: 900px;
-    width: 90%;
-    background: rgba(255,255,255,0.95);
-    padding: 30px;
-    border-radius: 15px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+    width: 90%;
+    background: rgba(255,255,255,0.95);
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
 }
 
 h2 { margin-bottom: 20px; color: #0984e3; display: flex; justify-content: center;}
 h3 { margin-top: 30px; margin-bottom: 10px; color: #6c5ce7; }
 
 input {
-    width: 100%;
-    padding: 12px;
-    font-size: 16px;
-    border: 1px solid #dfe6e9;
-    border-radius: 8px;
-    margin-bottom: 10px;
-    transition: all 0.2s;
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    border: 1px solid #dfe6e9;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    transition: all 0.2s;
 }
 input:focus { border-color: #0984e3; outline: none; box-shadow: 0 0 5px rgba(0,123,255,0.3); }
 
 button {
-    padding: 10px 20px;
-    font-size: 16px;
-    border: none;
-    border-radius: 8px;
-    width: 100%;
-    background: #00b894;
-    color: #fff;
-    cursor: pointer;
-    transition: all 0.2s;
-    margin-bottom: 20px;
+    padding: 10px 20px;
+    font-size: 16px;
+    border: none;
+    border-radius: 8px;
+    width: 100%;
+    background: #00b894;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 20px;
 }
 button:hover { background: #019875; }
 
@@ -74,84 +74,84 @@ button:hover { background: #019875; }
 
 /* Output Container */
 #outputWrapper {
-    position: relative;
+    position: relative;
 }
-    /* LOADING SPINNER */
+    /* LOADING SPINNER */
 #loadingAI {
-    display: none;
-    margin: 15px 0;
-    text-align: center;
-    font-size: 15px;
-    color: #6c5ce7;
+    display: none;
+    margin: 15px 0;
+    text-align: center;
+    font-size: 15px;
+    color: #6c5ce7;
 }
 
 .spinner {
-    width: 32px;
-    height: 32px;
-    border: 4px solid #dcdde1;
-    border-top-color: #6c5ce7;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    margin: 0 auto 10px auto;
+    width: 32px;
+    height: 32px;
+    border: 4px solid #dcdde1;
+    border-top-color: #6c5ce7;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 10px auto;
 }
 
 @keyframes spin {
-    from { transform: rotate(0); }
-    to { transform: rotate(360deg); }
+    from { transform: rotate(0); }
+    to { transform: rotate(360deg); }
 }
 
 
 /* Tombol Full Size */
 #fullBtn {
-    width: 100%;
-    padding: 8px 12px;
-    background: #6c5ce7;
-    border: none;
-    color: white;
-    border-radius: 8px;
-    margin-top: 8px;
-    cursor: pointer;
+    width: 100%;
+    padding: 8px 12px;
+    background: #6c5ce7;
+    border: none;
+    color: white;
+    border-radius: 8px;
+    margin-top: 8px;
+    cursor: pointer;
 }
 #fullBtn:hover {
-    background: #5b4ad6;
+    background: #5b4ad6;
 }
 
 /* PRE BOX KECIL DENGAN FULL MODE */
 #finalContent {
-    background: #f1f2f6;
-    padding: 15px;
-    border-radius: 8px;
-    overflow-x: auto;
-    overflow-y: auto;
-    max-height: 200px;            /* KOTAK KECIL */
-    white-space: pre-wrap;
-    word-break: break-word;
-    font-size: 14px;
-    transition: max-height 0.25s ease;
+    background: #f1f2f6;
+    padding: 15px;
+    border-radius: 8px;
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 200px;            /* KOTAK KECIL */
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 14px;
+    transition: max-height 0.25s ease;
 }
 
 /* FULLSCREEN MODE */
 #finalContent.full {
-    max-height: 80vh;             /* BESAR LAYAR */
+    max-height: 80vh;             /* BESAR LAYAR */
 }
 
 @media(max-width: 600px){
-    input, button { font-size: 14px; padding: 10px; }
-    pre { font-size: 13px; }
+    input, button { font-size: 14px; padding: 10px; }
+    pre { font-size: 13px; }
 }
 </style>
 </head>
 <body>
 
 <div class="container-scraper">
-  <h2>SAKAMICHI ARTICLE GRABBER</h2>
-  <input id="urlInput" placeholder="Tempel link blog Sakurazaka46 di sini">
-  <button onclick="scrape()">Ambil Artikel</button>
-  <div id="loadingAI" style="display:none; text-align:center; margin:10px 0;">
-    <div id="progressText">0%</div>
-    <div id="progressBarBg" style="width:100%; background:#ddd; height:8px; border-radius:4px; margin-top:5px;">
-        <div id="progressBar" style="width:0%; height:8px; background:#6c5ce7; border-radius:4px;"></div>
-    </div>
+  <h2>SAKAMICHI ARTICLE GRABBER</h2>
+  <input id="urlInput" placeholder="Tempel link blog Sakurazaka46 di sini">
+  <button onclick="scrape()">Ambil Artikel</button>
+  <div id="loadingAI" style="display:none; text-align:center; margin:10px 0;">
+    <div id="progressText">0%</div>
+    <div id="progressBarBg" style="width:100%; background:#ddd; height:8px; border-radius:4px; margin-top:5px;">
+        <div id="progressBar" style="width:0%; height:8px; background:#6c5ce7; border-radius:4px;"></div>
+    </div>
 </div>
 
 
@@ -163,89 +163,89 @@ button:hover { background: #019875; }
 let articleLines = [];
 
 /* =====================
-   SCRAPE
+   SCRAPE
 =====================*/
 async function scrape() {
-    const url = document.getElementById("urlInput").value;
-    if (!url) return alert("Masukkan URL dulu!");
+    const url = document.getElementById("urlInput").value;
+    if (!url) return alert("Masukkan URL dulu!");
 
-    document.getElementById("resultFinal").innerHTML =
-        `<div class="text-secondary">Mengambil data...</div>`;
+    document.getElementById("resultFinal").innerHTML =
+        `<div class="text-secondary">Mengambil data...</div>`;
 
-    try {
-        const proxyURL = "https://cors-proxy1.vercel.app/api/fetch?url=" + encodeURIComponent(url);
-        const res = await fetch(proxyURL);
-        const htmlText = await res.text();
+    try {
+        const proxyURL = "https://cors-proxy1.vercel.app/api/fetch?url=" + encodeURIComponent(url);
+        const res = await fetch(proxyURL);
+        const htmlText = await res.text();
 
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlText, "text/html");
-        const article = doc.querySelector("div.box-article");
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlText, "text/html");
+        const article = doc.querySelector("div.box-article");
 
-        if (!article) {
-            document.getElementById("resultFinal").innerHTML =
-                `<div class="text-danger">Tidak menemukan box-article</div>`;
-            return;
-        }
+        if (!article) {
+            document.getElementById("resultFinal").innerHTML =
+                `<div class="text-danger">Tidak menemukan box-article</div>`;
+            return;
+        }
 
-        // perbaiki src image relatif
-        let html = article.innerHTML.replace(/src="\/([^"]*)"/g, 'src="https://sakurazaka46.com/$1"');
+        // perbaiki src image relatif
+        let html = article.innerHTML.replace(/src="\/([^"]*)"/g, 'src="https://sakurazaka46.com/$1"');
 
-        // pecah berdasarkan <br> tetapi TAG TIDAK DIHAPUS
-        articleLines = html.split(/(<br\s*\/?>)/i).filter(l => l.trim().length > 0);
+        // pecah berdasarkan <br> tetapi TAG TIDAK DIHAPUS
+        articleLines = html.split(/(<br\s*\/?>)/i).filter(l => l.trim().length > 0);
 
-        await buildOutputFinal();
+        await buildOutputFinal();
 
-    } catch (err) {
-        document.getElementById("resultFinal").innerHTML =
-            `<div class="text-danger">Error: ${err.message}</div>`;
-    }
+    } catch (err) {
+        document.getElementById("resultFinal").innerHTML =
+            `<div class="text-danger">Error: ${err.message}</div>`;
+    }
 }
 
 /* =====================
-   GEMINI CALL FIX
+   GEMINI CALL FIX
 =====================*/
 async function geminiCall(prompt) {
-    try {
-        const res = await fetch("https://cors-proxy1.vercel.app/api/gemini", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt })
-        });
+    try {
+        const res = await fetch("https://cors-proxy1.vercel.app/api/gemini", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt })
+        });
 
-        const data = await res.json();
+        const data = await res.json();
 
-        // extractor FORMAT BARU GEMINI 2.x
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        return text || "(AI-gagal)";
-    } catch (err) {
-        return "(AI-gagal)";
-    }
+        // extractor FORMAT BARU GEMINI 2.x
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        return text || "(AI-gagal)";
+    } catch (err) {
+        return "(AI-gagal)";
+    }
 }
 
 /* =====================
-   BUILD OUTPUT
+   BUILD OUTPUT
 =====================*/
 async function buildOutputFinal() {
-    const finalOut = [];
-    showLoading();
+    const finalOut = [];
+    showLoading();
 
-    // 1. Filter baris yang hanya mengandung teks Jepang untuk diproses
-    const tasks = [];
-    for (let i = 0; i < articleLines.length; i++) {
-        let clean = articleLines[i].replace(/<[^>]+>/g, "").trim();
-        if (/[\u3040-\u30ff\u4e00-\u9faf]/.test(clean)) {
-            tasks.push({ index: i, text: clean });
-        }
-    }
+    // 1. Filter baris yang hanya mengandung teks Jepang untuk diproses
+    const tasks = [];
+    for (let i = 0; i < articleLines.length; i++) {
+        let clean = articleLines[i].replace(/<[^>]+>/g, "").trim();
+        if (/[\u3040-\u30ff\u4e00-\u9faf]/.test(clean)) {
+            tasks.push({ index: i, text: clean });
+        }
+    }
 
-    // 2. Kirim dalam Batch (Misal: 1 batch berisi 15 baris teks)
-    // Ini jauh lebih hemat limit daripada kirim satu-satu
-    const batchSize = 15; 
-    const resultsMap = {};
+    // 2. Kirim dalam Batch (Misal: 1 batch berisi 15 baris teks)
+    // Ini jauh lebih hemat limit daripada kirim satu-satu
+    const batchSize = 15; 
+    const resultsMap = {};
 
-    for (let i = 0; i < tasks.length; i += batchSize) {
-        const batch = tasks.slice(i, i + batchSize);
-        const batchPrompt = `
+    for (let i = 0; i < tasks.length; i += batchSize) {
+        const batch = tasks.slice(i, i + batchSize);
+        const batchPrompt = `
 Convert these Japanese lines into ROMAJI and INDONESIAN.
 Format: [Index] | [Romaji] | [Translation]
 Strictly follow the order and do not skip any index.
@@ -254,104 +254,104 @@ Lines to convert:
 ${batch.map(t => `${t.index} | ${t.text}`).join('\n')}
 `;
 
-        try {
-            const aiResponse = await geminiCall(batchPrompt);
-            const responseLines = aiResponse.split('\n');
+        try {
+            const aiResponse = await geminiCall(batchPrompt);
+            const responseLines = aiResponse.split('\n');
 
-            responseLines.forEach(line => {
-                const parts = line.split('|');
-                if (parts.length >= 3) {
-                    const idx = parts[0].trim();
-                    resultsMap[idx] = {
-                        romaji: parts[1].trim(),
-                        indo: parts[2].trim()
-                    };
-                }
-            });
-        } catch (e) {
-            console.error("Gagal memproses batch ini", e);
-        }
-    }
+            responseLines.forEach(line => {
+                const parts = line.split('|');
+                if (parts.length >= 3) {
+                    const idx = parts[0].trim();
+                    resultsMap[idx] = {
+                        romaji: parts[1].trim(),
+                        indo: parts[2].trim()
+                    };
+                }
+            });
+        } catch (e) {
+            console.error("Gagal memproses batch ini", e);
+        }
+    }
 
-    // 3. Rekonstruksi hasil akhir
-    for (let i = 0; i < articleLines.length; i++) {
-        const original = articleLines[i];
-        if (resultsMap[i]) {
-            const merged = `${original}\n<br><span class="romaji">[ROMAJI] ${resultsMap[i].romaji}</span>\n<br><span class="indo">[ID] ${resultsMap[i].indo}</span>`;
-            finalOut.push(merged);
-        } else {
-            finalOut.push(original);
-        }
-    }
+    // 3. Rekonstruksi hasil akhir
+    for (let i = 0; i < articleLines.length; i++) {
+        const original = articleLines[i];
+        if (resultsMap[i]) {
+            const merged = `${original}\n<br><span class="romaji">[ROMAJI] ${resultsMap[i].romaji}</span>\n<br><span class="indo">[ID] ${resultsMap[i].indo}</span>`;
+            finalOut.push(merged);
+        } else {
+            finalOut.push(original);
+        }
+    }
 
-    // 4. Tampilkan Hasil
-    document.getElementById("resultFinal").innerHTML = `
-        <h3 class="text-purple">OUTPUTnya, Silakan sayang~~ </h3>
-        <button onclick="copyFinal()" class="btn btn-primary mb-2">Copy</button>
-        <div id="outputWrapper">
-            <pre id="finalContent" class="mb-1"></pre>
-            <button id="fullBtn" onclick="toggleFull()">Full Size</button>
-        </div>
-    `;
+    // 4. Tampilkan Hasil
+    document.getElementById("resultFinal").innerHTML = `
+        <h3 class="text-purple">OUTPUTnya, Silakan sayang~~ </h3>
+        <button onclick="copyFinal()" class="btn btn-primary mb-2">Copy</button>
+        <div id="outputWrapper">
+            <pre id="finalContent" class="mb-1"></pre>
+            <button id="fullBtn" onclick="toggleFull()">Full Size</button>
+        </div>
+    `;
 
-    hideLoading();  
-    document.getElementById("finalContent").textContent = finalOut.join("\n");
+    hideLoading();  
+    document.getElementById("finalContent").textContent = finalOut.join("\n");
 }
 
 
 /* =====================
-   PROGRESS BAR LOADING
+   PROGRESS BAR LOADING
 =====================*/
 let progressInterval = null;
 
 function showLoading() {
-    const wrapper = document.getElementById("loadingAI");
-    wrapper.style.display = "block";
+    const wrapper = document.getElementById("loadingAI");
+    wrapper.style.display = "block";
 
-    let p = 0;
-    document.getElementById("progressText").textContent = "0%";
-    document.getElementById("progressBar").style.width = "0%";
+    let p = 0;
+    document.getElementById("progressText").textContent = "0%";
+    document.getElementById("progressBar").style.width = "0%";
 
-    progressInterval = setInterval(() => {
-        if (p >= 100) return;
-        p++;
-        document.getElementById("progressText").textContent = p + "%";
-        document.getElementById("progressBar").style.width = p + "%";
-    }, 80);
+    progressInterval = setInterval(() => {
+        if (p >= 100) return;
+        p++;
+        document.getElementById("progressText").textContent = p + "%";
+        document.getElementById("progressBar").style.width = p + "%";
+    }, 80);
 }
 
 function hideLoading() {
-    clearInterval(progressInterval);
-    document.getElementById("progressText").textContent = "100%";
-    document.getElementById("progressBar").style.width = "100%";
+    clearInterval(progressInterval);
+    document.getElementById("progressText").textContent = "100%";
+    document.getElementById("progressBar").style.width = "100%";
 
-    setTimeout(() => {
-        document.getElementById("loadingAI").style.display = "none";
-    }, 400);
+    setTimeout(() => {
+        document.getElementById("loadingAI").style.display = "none";
+    }, 400);
 }
 
 
 /* =====================
-   COPY BUTTON
+   COPY BUTTON
 =====================*/
 function copyFinal() {
-    navigator.clipboard.writeText(
-        document.getElementById("finalContent").textContent
-    ).then(() => alert("Copied!"));
+    navigator.clipboard.writeText(
+        document.getElementById("finalContent").textContent
+    ).then(() => alert("Copied!"));
 }
 
 
 /* =====================
-   FULL SIZE TOGGLE
+   FULL SIZE TOGGLE
 =====================*/
 function toggleFull() {
-    const box = document.getElementById("finalContent");
-    const btn = document.getElementById("fullBtn");
+    const box = document.getElementById("finalContent");
+    const btn = document.getElementById("fullBtn");
 
-    box.classList.toggle("full");
-    btn.textContent = box.classList.contains("full")
-        ? "Kecilkan"
-        : "Full Size";
+    box.classList.toggle("full");
+    btn.textContent = box.classList.contains("full")
+        ? "Kecilkan"
+        : "Full Size";
 }
 </script>
 
@@ -415,7 +415,7 @@ const observer = new MutationObserver((mutations) => {
 
 // Jalankan pemantauan pada div resultFinal
 observer.observe(document.body, { childList: true, subtree: true });
-</script>    
-
+</script>
+    
 </body>
 </html>
