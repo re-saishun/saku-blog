@@ -55,7 +55,7 @@ input {
 }
 input:focus { border-color: #0984e3; outline: none; box-shadow: 0 0 5px rgba(0,123,255,0.3); }
 
-button.btn-scrape {
+button {
     padding: 10px 20px;
     font-size: 16px;
     border: none;
@@ -67,7 +67,7 @@ button.btn-scrape {
     transition: all 0.2s;
     margin-bottom: 20px;
 }
-button.btn-scrape:hover { background: #019875; }
+button:hover { background: #019875; }
 
 .text-danger { display: flex; justify-content: center; }
 
@@ -75,8 +75,7 @@ button.btn-scrape:hover { background: #019875; }
 #outputWrapper {
     position: relative;
 }
-
-/* LOADING SPINNER */
+    /* LOADING SPINNER */
 #loadingAI {
     display: none;
     margin: 15px 0;
@@ -100,6 +99,7 @@ button.btn-scrape:hover { background: #019875; }
     to { transform: rotate(360deg); }
 }
 
+
 /* Tombol Full Size */
 #fullBtn {
     width: 100%;
@@ -122,7 +122,7 @@ button.btn-scrape:hover { background: #019875; }
     border-radius: 8px;
     overflow-x: auto;
     overflow-y: auto;
-    max-height: 200px;
+    max-height: 200px;            /* KOTAK KECIL */
     white-space: pre-wrap;
     word-break: break-word;
     font-size: 14px;
@@ -131,7 +131,7 @@ button.btn-scrape:hover { background: #019875; }
 
 /* FULLSCREEN MODE */
 #finalContent.full {
-    max-height: 80vh;
+    max-height: 80vh;              /* BESAR LAYAR */
 }
 
 @media(max-width: 600px){
@@ -145,21 +145,25 @@ button.btn-scrape:hover { background: #019875; }
 <div class="container-scraper">
   <h2>SAKAMICHI ARTICLE GRABBER</h2>
   <input id="urlInput" placeholder="Tempel link blog Sakurazaka46 di sini">
-  <button class="btn-scrape" onclick="scrape()">Ambil Artikel</button>
-  
-  <div id="loadingAI">
+  <button onclick="scrape()">Ambil Artikel</button>
+  <div id="loadingAI" style="display:none; text-align:center; margin:10px 0;">
     <div id="progressText">0%</div>
     <div id="progressBarBg" style="width:100%; background:#ddd; height:8px; border-radius:4px; margin-top:5px;">
         <div id="progressBar" style="width:0%; height:8px; background:#6c5ce7; border-radius:4px;"></div>
     </div>
-  </div>
+</div>
 
-  <div id="resultFinal"></div>
+
+<div id="resultFinal"></div>
+
 </div>
 
 <script>
 let articleLines = [];
 
+/* =====================
+   SCRAPE
+=====================*/
 async function scrape() {
     const url = document.getElementById("urlInput").value;
     if (!url) return alert("Masukkan URL dulu!");
@@ -182,7 +186,10 @@ async function scrape() {
             return;
         }
 
+        // perbaiki src image relatif
         let html = article.innerHTML.replace(/src="\/([^"]*)"/g, 'src="https://sakurazaka46.com/$1"');
+
+        // pecah berdasarkan <br> tetapi TAG TIDAK DIHAPUS
         articleLines = html.split(/(<br\s*\/?>)/i).filter(l => l.trim().length > 0);
 
         await buildOutputFinal();
@@ -193,6 +200,9 @@ async function scrape() {
     }
 }
 
+/* =====================
+   GEMINI CALL FIX
+=====================*/
 async function geminiCall(prompt) {
     try {
         const res = await fetch("https://cors-proxy1.vercel.app/api/gemini", {
@@ -200,7 +210,10 @@ async function geminiCall(prompt) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ prompt })
         });
+
         const data = await res.json();
+
+        // extractor FORMAT BARU GEMINI 2.x
         const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
         return text || "(AI-gagal)";
     } catch (err) {
@@ -208,10 +221,14 @@ async function geminiCall(prompt) {
     }
 }
 
+/* =====================
+   BUILD OUTPUT
+=====================*/
 async function buildOutputFinal() {
     const finalOut = [];
     showLoading();
 
+    // 1. Filter baris yang hanya mengandung teks Jepang untuk diproses
     const tasks = [];
     for (let i = 0; i < articleLines.length; i++) {
         let clean = articleLines[i].replace(/<[^>]+>/g, "").trim();
@@ -220,12 +237,21 @@ async function buildOutputFinal() {
         }
     }
 
+    // 2. Kirim dalam Batch (Misal: 1 batch berisi 15 baris teks)
+    // Ini jauh lebih hemat limit daripada kirim satu-satu
     const batchSize = 15; 
     const resultsMap = {};
 
     for (let i = 0; i < tasks.length; i += batchSize) {
         const batch = tasks.slice(i, i + batchSize);
-        const batchPrompt = `Convert these Japanese lines into ROMAJI and INDONESIAN.\nFormat: [Index] | [Romaji] | [Translation]\nStrictly follow the order.\n\nLines:\n${batch.map(t => `${t.index} | ${t.text}`).join('\n')}`;
+        const batchPrompt = `
+Convert these Japanese lines into ROMAJI and INDONESIAN.
+Format: [Index] | [Romaji] | [Translation]
+Strictly follow the order and do not skip any index.
+
+Lines to convert:
+${batch.map(t => `${t.index} | ${t.text}`).join('\n')}
+`;
 
         try {
             const aiResponse = await geminiCall(batchPrompt);
@@ -241,9 +267,12 @@ async function buildOutputFinal() {
                     };
                 }
             });
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error("Gagal memproses batch ini", e);
+        }
     }
 
+    // 3. Rekonstruksi hasil akhir
     for (let i = 0; i < articleLines.length; i++) {
         const original = articleLines[i];
         if (resultsMap[i]) {
@@ -254,11 +283,12 @@ async function buildOutputFinal() {
         }
     }
 
+    // 4. Tampilkan Hasil (Ditambahkan tombol Copy MD)
     document.getElementById("resultFinal").innerHTML = `
         <h3 class="text-purple">OUTPUTnya, Silakan sayang~~ </h3>
-        <div class="d-flex gap-2 mb-2">
-            <button onclick="copyFinal()" class="btn btn-primary flex-fill">Copy HTML</button>
-            <button onclick="copyAsMarkdown()" class="btn btn-dark flex-fill">Copy MD</button>
+        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <button onclick="copyFinal()" class="btn btn-primary" style="margin-bottom:0;">Copy HTML</button>
+            <button onclick="copyMD()" class="btn btn-dark" style="background:#2d3436; margin-bottom:0;">Copy MD</button>
         </div>
         <div id="outputWrapper">
             <pre id="finalContent" class="mb-1"></pre>
@@ -270,52 +300,77 @@ async function buildOutputFinal() {
     document.getElementById("finalContent").textContent = finalOut.join("\n");
 }
 
-/* --- Sinkronisasi Progress Bar --- */
+
+/* =====================
+   PROGRESS BAR LOADING
+=====================*/
 let progressInterval = null;
+
 function showLoading() {
     const wrapper = document.getElementById("loadingAI");
     wrapper.style.display = "block";
+
     let p = 0;
+    document.getElementById("progressText").textContent = "0%";
+    document.getElementById("progressBar").style.width = "0%";
+
     progressInterval = setInterval(() => {
-        if (p >= 95) return;
+        if (p >= 100) return;
         p++;
         document.getElementById("progressText").textContent = p + "%";
         document.getElementById("progressBar").style.width = p + "%";
-    }, 100);
+    }, 80);
 }
 
 function hideLoading() {
     clearInterval(progressInterval);
     document.getElementById("progressText").textContent = "100%";
     document.getElementById("progressBar").style.width = "100%";
-    setTimeout(() => { document.getElementById("loadingAI").style.display = "none"; }, 400);
+
+    setTimeout(() => {
+        document.getElementById("loadingAI").style.display = "none";
+    }, 400);
 }
 
-/* --- Fungsi Copy --- */
+
+/* =====================
+   COPY BUTTONS
+=====================*/
 function copyFinal() {
-    navigator.clipboard.writeText(document.getElementById("finalContent").textContent)
-    .then(() => alert("HTML Copied!"));
+    navigator.clipboard.writeText(
+        document.getElementById("finalContent").textContent
+    ).then(() => alert("Copied HTML!"));
 }
 
-function copyAsMarkdown() {
-    let text = document.getElementById("finalContent").textContent;
-    let md = text
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/<span class="romaji">\[ROMAJI\] (.*?)<\/span>/gi, '_$1_') // Miring untuk Romaji
-        .replace(/<span class="indo">\[ID\] (.*?)<\/span>/gi, '**$1**')   // Tebal untuk Indo
-        .replace(/<img[^>]+src="([^">]+)"[^>]*>/gi, '\n![image]($1)\n')
-        .replace(/<[^>]+>/g, '')
-        .replace(/\n\s*\n/g, '\n\n');
+function copyMD() {
+    const content = document.getElementById("finalContent").textContent;
+    
+    // Konversi tag-tag tertentu ke Markdown secara instan
+    let md = content
+        .replace(/<br\s*\/?>/gi, '\n') // Ubah <br> jadi line break
+        .replace(/<span class="romaji">\[ROMAJI\] (.*?)<\/span>/gi, '*$1*') // Romaji jadi Italic
+        .replace(/<span class="indo">\[ID\] (.*?)<\/span>/gi, '**$1**')   // Indo jadi Bold
+        .replace(/<img[^>]+src="([^">]+)"[^>]*>/gi, '\n![image]($1)\n')   // Img tag ke MD format
+        .replace(/<[^>]+>/g, '') // Hapus sisa tag HTML lainnya
+        .replace(/\n\s*\n/g, '\n\n'); // Rapikan spasi berlebih
 
-    navigator.clipboard.writeText(md.trim()).then(() => alert("Markdown Copied!"));
+    navigator.clipboard.writeText(md.trim()).then(() => alert("Copied as Markdown!"));
 }
 
+
+/* =====================
+   FULL SIZE TOGGLE
+=====================*/
 function toggleFull() {
     const box = document.getElementById("finalContent");
     const btn = document.getElementById("fullBtn");
+
     box.classList.toggle("full");
-    btn.textContent = box.classList.contains("full") ? "Kecilkan" : "Full Size";
+    btn.textContent = box.classList.contains("full")
+        ? "Kecilkan"
+        : "Full Size";
 }
 </script>
+
 </body>
 </html>
