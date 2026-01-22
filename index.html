@@ -354,68 +354,6 @@ function toggleFull() {
         : "Full Size";
 }
 </script>
-
-<script>
-/* =====================
-   ADD COPY MD BUTTON (JS ONLY)
-   Letak: Di bawah kotak output, di atas tombol Full Size
-=====================*/
-
-// Fungsi untuk melakukan konversi teks HTML ke Markdown sederhana
-function getMarkdownFromContent() {
-    const content = document.getElementById("finalContent").textContent;
-    if (!content) return "";
-
-    return content
-        .replace(/<br\s*\/?>/gi, '\n') // <br> jadi baris baru
-        .replace(/<span class="romaji">\[ROMAJI\] (.*?)<\/span>/gi, '_$1_') // Romaji jadi miring
-        .replace(/<span class="indo">\[ID\] (.*?)<\/span>/gi, '**$1**')   // Indo jadi tebal
-        .replace(/<img[^>]+src="([^">]+)"[^>]*>/gi, '\n![image]($1)\n')   // Tag img ke format MD
-        .replace(/<[^>]+>/g, '') // Hapus sisa tag HTML
-        .replace(/\n\s*\n/g, '\n\n') // Rapikan spasi
-        .trim();
-}
-
-// Fungsi eksekusi Copy MD
-function copyToMarkdown() {
-    const mdText = getMarkdownFromContent();
-    if (!mdText) return alert("Belum ada konten untuk di-copy!");
-
-    navigator.clipboard.writeText(mdText).then(() => {
-        alert("Copied as Markdown!");
-    });
-}
-
-// Observer untuk mendeteksi kapan output muncul, lalu menyisipkan tombol
-const observer = new MutationObserver((mutations) => {
-    const outputWrapper = document.getElementById("outputWrapper");
-    const fullBtn = document.getElementById("fullBtn");
-    
-    // Jika output sudah muncul dan tombol MD belum ada
-    if (outputWrapper && fullBtn && !document.getElementById("copyMdBtn")) {
-        const mdBtn = document.createElement("button");
-        mdBtn.id = "copyMdBtn";
-        mdBtn.textContent = "Copy MD";
-        mdBtn.onclick = copyToMarkdown;
-        
-        // Styling agar seragam dengan desainmu
-        mdBtn.style.width = "100%";
-        mdBtn.style.padding = "8px 12px";
-        mdBtn.style.background = "#2d3436"; // Warna gelap untuk membedakan dengan Full Size
-        mdBtn.style.border = "none";
-        mdBtn.style.color = "white";
-        mdBtn.style.borderRadius = "8px";
-        mdBtn.style.marginTop = "8px";
-        mdBtn.style.cursor = "pointer";
-        
-        // Sisipkan di atas tombol Full Size
-        outputWrapper.insertBefore(mdBtn, fullBtn);
-    }
-});
-
-// Jalankan pemantauan pada div resultFinal
-observer.observe(document.body, { childList: true, subtree: true });
-</script>
     
 </body>
 </html>
