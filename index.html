@@ -373,12 +373,13 @@ const mdObserver = new MutationObserver(() => {
         btn.onclick = () => {
             const content = document.getElementById("finalContent").textContent;
             const md = content
-                .replace(/<br\s*\/?>/gi, '\n')
-                .replace(/<span class="romaji">\[ROMAJI\] (.*?)<\/span>/gi, '_$1_')
-                .replace(/<span class="indo">\[ID\] (.*?)<\/span>/gi, '**$1**')
-                .replace(/<img[^>]+src="([^">]+)"[^>]*>/gi, '\n![img]($1)\n')
-                .replace(/<[^>]+>/g, '')
-                .replace(/\n\s*\n/g, '\n\n').trim();
+            .replace(/\n/g, '') // Hapus enter fisik pembentuk struktur HTML
+            .replace(/<br\s*\/?>/gi, '\n') // Ubah setiap <br> menjadi tepat 1 baris baru
+            .replace(/<span class="romaji">\[ROMAJI\] (.*?)<\/span>/gi, '_$1_')
+            .replace(/<span class="indo">\[ID\] (.*?)<\/span>/gi, '**$1**')
+            .replace(/<img[^>]+src="([^">]+)"[^>]*>/gi, '\n![img]($1)\n')
+            .replace(/<[^>]+>/g, '') // Hapus sisa tag HTML
+            .trim();
             
             navigator.clipboard.writeText(md).then(() => alert("Markdown Copied!"));
         };
