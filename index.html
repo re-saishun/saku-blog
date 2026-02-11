@@ -165,8 +165,18 @@ async function buildOutputFinal() {
     const tasks = [];
     for (let i = 0; i < articleLines.length; i++) {
         let clean = articleLines[i].replace(/<[^>]+>/g, "").trim();
-        if (/[\u3040-\u30ff\u4e00-\u9faf]/.test(clean)) {
-            tasks.push({ index: i, text: clean });
+        
+        // MODIFIKASI FILTER UNTUK MODE BELAJAR
+        if (mode === "belajar") {
+            // Ambil semua teks yang punya huruf/angka (termasuk judul Inggris) tapi abaikan yang cuma simbol 1 karakter
+            if (/[a-zA-Z0-9\u3040-\u30ff\u4e00-\u9faf]/.test(clean) && clean.length > 1) {
+                tasks.push({ index: i, text: clean });
+            }
+        } else {
+            // Mode Normal tetap filter standar Jepang
+            if (/[\u3040-\u30ff\u4e00-\u9faf]/.test(clean)) {
+                tasks.push({ index: i, text: clean });
+            }
         }
     }
 
@@ -175,15 +185,16 @@ async function buildOutputFinal() {
 
     for (let i = 0; i < tasks.length; i += batchSize) {
         const batch = tasks.slice(i, i + batchSize);
-        
-        // PENGATURAN PROMPT BERDASARKAN MODE
         let batchPrompt = "";
+
         if (mode === "belajar") {
-            batchPrompt = `You are a Japanese Sensei. Convert these Japanese lines for a N5-N4 student.
+            // MODIFIKASI PROMPT MODE BELAJAR (Lebih to-the-point)
+            batchPrompt = `Task: Sakurazaka46 Blog translation for N4 level.
 Format: [Index] | [Furigana] | [Translation]
 Rules:
-1. Instead of Romaji, rewrite the Japanese text but add Furigana in brackets after every Kanji. Example: 漢字[かんじ].
-2. Use simple Indonesian for N4 level.
+1. Rewrite Japanese text with Furigana in brackets for Kanji. e.g. 漢字[かんじ].
+2. Keep English/Names as is.
+3. Indonesian translation must be simple.
 Lines:
 ${batch.map(t => `${t.index} | ${t.text}`).join('\n')}`;
         } else {
@@ -199,7 +210,9 @@ ${batch.map(t => `${t.index} | ${t.text}`).join('\n')}`;
             responseLines.forEach(line => {
                 const parts = line.split('|');
                 if (parts.length >= 3) {
-                    resultsMap[parts[0].trim()] = { val1: parts[1].trim(), val2: parts[2].trim() };
+                    // Bersihkan index dari karakter non-angka agar mapping akurat
+                    const idx = parts[0].replace(/[^0-9]/g, "").trim();
+                    resultsMap[idx] = { val1: parts[1].trim(), val2: parts[2].trim() };
                 }
             });
         } catch (e) { console.error(e); }
@@ -258,7 +271,6 @@ function toggleFull() {
     document.getElementById("fullBtn").textContent = box.classList.contains("full") ? "Kecilkan" : "Full Size";
 }
 
-// MD Observer tetap sama
 const mdObserver = new MutationObserver(() => {
     const wrapper = document.getElementById("outputWrapper");
     const fullBtn = document.getElementById("fullBtn");
