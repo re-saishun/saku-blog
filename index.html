@@ -162,7 +162,6 @@ async function geminiCall(prompt) {
 async function buildOutputFinal() {
     const mode = document.getElementById("modePrompt").value;
     showLoading();
-    resultsMap = {}; // Reset setiap kali tombol ditekan
 
     const tasks = [];
     for (let i = 0; i < articleLines.length; i++) {
@@ -179,20 +178,18 @@ async function buildOutputFinal() {
     }
 
     // --- PROSES BATCH PERTAMA ---
-    const batchSize = 10;
+    const batchSize = 10; // Batch kecil agar lebih teliti
     for (let i = 0; i < tasks.length; i += batchSize) {
         const batch = tasks.slice(i, i + batchSize);
-        await processBatch(batch, mode); // Pakai AWAIT agar urut
+        await processBatch(batch, mode);
     }
 
     // --- SCAN ULANG & RETRY (HANYA MODE BELAJAR) ---
     if (mode === "belajar") {
-        // Cek mana yang benar-benar belum ada di resultsMap
-        let missingTasks = tasks.filter(t => !resultsMap[t.index.toString()]);
-        
+        const missingTasks = tasks.filter(t => !resultsMap[t.index]);
         if (missingTasks.length > 0) {
             console.log(`Retry mendeteksi ${missingTasks.length} baris kosong. Memproses ulang...`);
-            // Gunakan batch lebih kecil (5) agar AI sangat teliti
+            // Batch lebih kecil lagi untuk retry agar AI fokus maksimal
             for (let i = 0; i < missingTasks.length; i += 5) {
                 const batch = missingTasks.slice(i, i + 5);
                 await processBatch(batch, mode, true);
@@ -206,56 +203,46 @@ async function buildOutputFinal() {
 async function processBatch(batch, mode, isRetry = false) {
     let prompt = "";
     if (mode === "belajar") {
-        prompt = `Translate these lines for N4 level. 
+        prompt = `Task: ${isRetry ? "URGENT RETRY " : ""}Sakurazaka46 Blog translation.
 Format: [Index] | [Furigana] | [Translation]
-Rules: Kanji[furigana], keep names/English, simple Indonesian.
+Rules:
+1. Use Furigana for Kanji: 漢字[かんじ].
+2. Keep English/Names as is. Simple Indonesian.
 Lines:
 ${batch.map(t => `${t.index} | ${t.text}`).join('\n')}`;
     } else {
-        prompt = `Format: [Index] | [Romaji] | [Translation]\nLines:\n${batch.map(t => `${t.index} | ${t.text}`).join('\n')}`;
+        prompt = `Convert these to ROMAJI and INDONESIAN.
+Format: [Index] | [Romaji] | [Translation]
+Lines:
+${batch.map(t => `${t.index} | ${t.text}`).join('\n')}`;
     }
 
     try {
         const aiResponse = await geminiCall(prompt);
-        const lines = aiResponse.split('\n');
-        
-        lines.forEach(line => {
-            if (!line.includes('|')) return;
+        aiResponse.split('\n').forEach(line => {
             const parts = line.split('|');
-            
-            // Ambil angka pertama yang muncul di bagian index
-            const match = parts[0].match(/\d+/);
-            if (match && parts.length >= 3) {
-                const idx = match[0];
-                resultsMap[idx] = { 
-                    val1: parts[1].trim(), 
-                    val2: parts[2].trim() 
-                };
+            if (parts.length >= 3) {
+                const idx = parts[0].replace(/[^0-9]/g, "").trim();
+                if (idx) resultsMap[idx] = { val1: parts[1].trim(), val2: parts[2].trim() };
             }
         });
-    } catch (e) { 
-        console.error("Batch error", e); 
-    }
+    } catch (e) { console.error("Batch processing error", e); }
 }
 
 function renderOutput(mode) {
     const finalOut = [];
     for (let i = 0; i < articleLines.length; i++) {
         const original = articleLines[i];
-        // Pastikan kita cek index sebagai string
-        const data = resultsMap[i.toString()]; 
-        
-        if (data) {
+        if (resultsMap[i]) {
             const label1 = (mode === "belajar") ? "READING" : "ROMAJI";
-            const merged = `${original}\n<br><span class="romaji">[${label1}] ${data.val1}</span>\n<br><span class="indo">[ID] ${data.val2}</span>`;
+            const merged = `${original}\n<br><span class="romaji">[${label1}] ${resultsMap[i].val1}</span>\n<br><span class="indo">[ID] ${resultsMap[i].val2}</span>`;
             finalOut.push(merged);
         } else {
             finalOut.push(original);
         }
     }
 
-    const contentBox = document.getElementById("resultFinal");
-    contentBox.innerHTML = `
+    document.getElementById("resultFinal").innerHTML = `
         <h3 class="text-purple">OUTPUT (${mode.toUpperCase()})</h3>
         <button onclick="copyFinal()" class="btn btn-primary mb-2">Copy Raw</button>
         <div id="outputWrapper">
@@ -266,7 +253,6 @@ function renderOutput(mode) {
 
     hideLoading();  
     document.getElementById("finalContent").textContent = finalOut.join("\n");
-}
 }
 
 function showLoading() {
