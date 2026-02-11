@@ -144,20 +144,33 @@ async function scrape() {
 
         await buildOutputFinal();
     } catch (err) {
-        document.getElementById("resultFinal").innerHTML = `<div class="text-danger">Error: ${err.message}</div>`;
+        document.getElementById("resultFinal").innerHTML = `<div class="text-danger">Error Scraping: ${err.message}</div>`;
     }
 }
 
-async function geminiCall(prompt) {
+async function geminiCall(prompt, retryCount = 0) {
     try {
         const res = await fetch("https://cors-proxy1.vercel.app/api/gemini", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ prompt })
         });
+
+        // Jika API Key di Vercel Limit (429), otomatis coba lagi (akan memicu rotasi key acak di server)
+        if (res.status === 429 && retryCount < 3) {
+            console.warn("Key Limit, mencoba ulang dengan key lain...");
+            await new Promise(r => setTimeout(r, 1000)); // Jeda 1 detik
+            return await geminiCall(prompt, retryCount + 1);
+        }
+
         const data = await res.json();
+        if (res.status !== 200) throw new Error(data.error || "Gagal AI");
+
         return data?.candidates?.[0]?.content?.parts?.[0]?.text || "(AI-gagal)";
-    } catch (err) { return "(AI-gagal)"; }
+    } catch (err) { 
+        console.error("Gemini Error:", err.message);
+        return "(AI-gagal)"; 
+    }
 }
 
 async function buildOutputFinal() {
@@ -179,21 +192,23 @@ async function buildOutputFinal() {
         }
     }
 
-    // --- PROSES BATCH PERTAMA ---
-    const batchSize = 10;
+    // Gunakan batch lebih kecil (5) agar tidak kena timeout Vercel
+    const batchSize = 5;
     for (let i = 0; i < tasks.length; i += batchSize) {
         const batch = tasks.slice(i, i + batchSize);
         await processBatch(batch, mode);
+        // Progress update manual
+        let p = Math.floor((i / tasks.length) * 100);
+        document.getElementById("progressText").textContent = p + "%";
+        document.getElementById("progressBar").style.width = p + "%";
     }
 
-    // --- SCAN ULANG & RETRY (HANYA MODE BELAJAR) ---
+    // --- RETRY UNTUK BARIS KOSONG ---
     if (mode === "belajar") {
         let missingTasks = tasks.filter(t => !resultsMap[t.index.toString()]);
-        
         if (missingTasks.length > 0) {
-            console.log(`Retry mendeteksi ${missingTasks.length} baris kosong. Memproses ulang...`);
-            for (let i = 0; i < missingTasks.length; i += 5) {
-                const batch = missingTasks.slice(i, i + 5);
+            for (let i = 0; i < missingTasks.length; i += 3) {
+                const batch = missingTasks.slice(i, i + 3);
                 await processBatch(batch, mode, true);
             }
         }
@@ -211,7 +226,10 @@ Rules: Kanji[furigana], keep names/English, simple Indonesian.
 Lines:
 ${batch.map(t => `${t.index} | ${t.text}`).join('\n')}`;
     } else {
-        prompt = `Format: [Index] | [Romaji] | [Translation]\nLines:\n${batch.map(t => `${t.index} | ${t.text}`).join('\n')}`;
+        prompt = `Translate to Romaji and Indonesian.
+Format: [Index] | [Romaji] | [Translation]
+Lines:
+${batch.map(t => `${t.index} | ${t.text}`).join('\n')}`;
     }
 
     try {
@@ -267,24 +285,19 @@ function renderOutput(mode) {
 function showLoading() {
     const wrapper = document.getElementById("loadingAI");
     wrapper.style.display = "block";
-    let p = 0;
-    progressInterval = setInterval(() => {
-        if (p >= 95) return;
-        p += 5;
-        document.getElementById("progressText").textContent = p + "%";
-        document.getElementById("progressBar").style.width = p + "%";
-    }, 200);
+    document.getElementById("progressText").textContent = "0%";
+    document.getElementById("progressBar").style.width = "0%";
 }
 
 function hideLoading() {
-    clearInterval(progressInterval);
     document.getElementById("progressText").textContent = "100%";
     document.getElementById("progressBar").style.width = "100%";
     setTimeout(() => { document.getElementById("loadingAI").style.display = "none"; }, 400);
 }
 
 function copyFinal() {
-    navigator.clipboard.writeText(document.getElementById("finalContent").textContent).then(() => alert("Copied!"));
+    const content = document.getElementById("finalContent").textContent;
+    navigator.clipboard.writeText(content).then(() => alert("Copied!"));
 }
 
 function toggleFull() {
@@ -293,6 +306,7 @@ function toggleFull() {
     document.getElementById("fullBtn").textContent = box.classList.contains("full") ? "Kecilkan" : "Full Size";
 }
 
+// Obsever untuk Copy MD tetap sama
 const mdObserver = new MutationObserver(() => {
     const wrapper = document.getElementById("outputWrapper");
     const fullBtn = document.getElementById("fullBtn");
