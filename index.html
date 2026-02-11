@@ -117,12 +117,11 @@ button:hover { background: #019875; }
 <script>
 let articleLines = [];
 let resultsMap = {};
-let progressInterval;
 
 async function scrape() {
     const url = document.getElementById("urlInput").value;
     if (!url) return alert("Masukkan URL dulu!");
-    resultsMap = {}; 
+    resultsMap = {}; // Reset map hasil
 
     document.getElementById("resultFinal").innerHTML = `<div class="text-secondary">Mengambil data...</div>`;
 
@@ -144,39 +143,26 @@ async function scrape() {
 
         await buildOutputFinal();
     } catch (err) {
-        document.getElementById("resultFinal").innerHTML = `<div class="text-danger">Error Scraping: ${err.message}</div>`;
+        document.getElementById("resultFinal").innerHTML = `<div class="text-danger">Error: ${err.message}</div>`;
     }
 }
 
-async function geminiCall(prompt, retryCount = 0) {
+async function geminiCall(prompt) {
     try {
         const res = await fetch("https://cors-proxy1.vercel.app/api/gemini", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ prompt })
         });
-
-        // Jika API Key di Vercel Limit (429), otomatis coba lagi (akan memicu rotasi key acak di server)
-        if (res.status === 429 && retryCount < 3) {
-            console.warn("Key Limit, mencoba ulang dengan key lain...");
-            await new Promise(r => setTimeout(r, 1000)); // Jeda 1 detik
-            return await geminiCall(prompt, retryCount + 1);
-        }
-
         const data = await res.json();
-        if (res.status !== 200) throw new Error(data.error || "Gagal AI");
-
         return data?.candidates?.[0]?.content?.parts?.[0]?.text || "(AI-gagal)";
-    } catch (err) { 
-        console.error("Gemini Error:", err.message);
-        return "(AI-gagal)"; 
-    }
+    } catch (err) { return "(AI-gagal)"; }
 }
 
 async function buildOutputFinal() {
     const mode = document.getElementById("modePrompt").value;
     showLoading();
-    resultsMap = {}; 
+    resultsMap = {}; // Reset setiap kali tombol ditekan
 
     const tasks = [];
     for (let i = 0; i < articleLines.length; i++) {
@@ -192,23 +178,23 @@ async function buildOutputFinal() {
         }
     }
 
-    // Gunakan batch lebih kecil (5) agar tidak kena timeout Vercel
-    const batchSize = 5;
+    // --- PROSES BATCH PERTAMA ---
+    const batchSize = 10;
     for (let i = 0; i < tasks.length; i += batchSize) {
         const batch = tasks.slice(i, i + batchSize);
-        await processBatch(batch, mode);
-        // Progress update manual
-        let p = Math.floor((i / tasks.length) * 100);
-        document.getElementById("progressText").textContent = p + "%";
-        document.getElementById("progressBar").style.width = p + "%";
+        await processBatch(batch, mode); // Pakai AWAIT agar urut
     }
 
-    // --- RETRY UNTUK BARIS KOSONG ---
+    // --- SCAN ULANG & RETRY (HANYA MODE BELAJAR) ---
     if (mode === "belajar") {
+        // Cek mana yang benar-benar belum ada di resultsMap
         let missingTasks = tasks.filter(t => !resultsMap[t.index.toString()]);
+        
         if (missingTasks.length > 0) {
-            for (let i = 0; i < missingTasks.length; i += 3) {
-                const batch = missingTasks.slice(i, i + 3);
+            console.log(`Retry mendeteksi ${missingTasks.length} baris kosong. Memproses ulang...`);
+            // Gunakan batch lebih kecil (5) agar AI sangat teliti
+            for (let i = 0; i < missingTasks.length; i += 5) {
+                const batch = missingTasks.slice(i, i + 5);
                 await processBatch(batch, mode, true);
             }
         }
@@ -226,10 +212,7 @@ Rules: Kanji[furigana], keep names/English, simple Indonesian.
 Lines:
 ${batch.map(t => `${t.index} | ${t.text}`).join('\n')}`;
     } else {
-        prompt = `Translate to Romaji and Indonesian.
-Format: [Index] | [Romaji] | [Translation]
-Lines:
-${batch.map(t => `${t.index} | ${t.text}`).join('\n')}`;
+        prompt = `Format: [Index] | [Romaji] | [Translation]\nLines:\n${batch.map(t => `${t.index} | ${t.text}`).join('\n')}`;
     }
 
     try {
@@ -239,6 +222,8 @@ ${batch.map(t => `${t.index} | ${t.text}`).join('\n')}`;
         lines.forEach(line => {
             if (!line.includes('|')) return;
             const parts = line.split('|');
+            
+            // Ambil angka pertama yang muncul di bagian index
             const match = parts[0].match(/\d+/);
             if (match && parts.length >= 3) {
                 const idx = match[0];
@@ -257,6 +242,7 @@ function renderOutput(mode) {
     const finalOut = [];
     for (let i = 0; i < articleLines.length; i++) {
         const original = articleLines[i];
+        // Pastikan kita cek index sebagai string
         const data = resultsMap[i.toString()]; 
         
         if (data) {
@@ -281,23 +267,29 @@ function renderOutput(mode) {
     hideLoading();  
     document.getElementById("finalContent").textContent = finalOut.join("\n");
 }
+}
 
 function showLoading() {
     const wrapper = document.getElementById("loadingAI");
     wrapper.style.display = "block";
-    document.getElementById("progressText").textContent = "0%";
-    document.getElementById("progressBar").style.width = "0%";
+    let p = 0;
+    progressInterval = setInterval(() => {
+        if (p >= 95) return;
+        p += 5;
+        document.getElementById("progressText").textContent = p + "%";
+        document.getElementById("progressBar").style.width = p + "%";
+    }, 200);
 }
 
 function hideLoading() {
+    clearInterval(progressInterval);
     document.getElementById("progressText").textContent = "100%";
     document.getElementById("progressBar").style.width = "100%";
     setTimeout(() => { document.getElementById("loadingAI").style.display = "none"; }, 400);
 }
 
 function copyFinal() {
-    const content = document.getElementById("finalContent").textContent;
-    navigator.clipboard.writeText(content).then(() => alert("Copied!"));
+    navigator.clipboard.writeText(document.getElementById("finalContent").textContent).then(() => alert("Copied!"));
 }
 
 function toggleFull() {
@@ -306,7 +298,6 @@ function toggleFull() {
     document.getElementById("fullBtn").textContent = box.classList.contains("full") ? "Kecilkan" : "Full Size";
 }
 
-// Obsever untuk Copy MD tetap sama
 const mdObserver = new MutationObserver(() => {
     const wrapper = document.getElementById("outputWrapper");
     const fullBtn = document.getElementById("fullBtn");
