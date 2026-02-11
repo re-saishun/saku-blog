@@ -117,11 +117,12 @@ button:hover { background: #019875; }
 <script>
 let articleLines = [];
 let resultsMap = {};
+let progressInterval;
 
 async function scrape() {
     const url = document.getElementById("urlInput").value;
     if (!url) return alert("Masukkan URL dulu!");
-    resultsMap = {}; // Reset map hasil
+    resultsMap = {}; 
 
     document.getElementById("resultFinal").innerHTML = `<div class="text-secondary">Mengambil data...</div>`;
 
@@ -162,7 +163,7 @@ async function geminiCall(prompt) {
 async function buildOutputFinal() {
     const mode = document.getElementById("modePrompt").value;
     showLoading();
-    resultsMap = {}; // Reset setiap kali tombol ditekan
+    resultsMap = {}; 
 
     const tasks = [];
     for (let i = 0; i < articleLines.length; i++) {
@@ -182,17 +183,15 @@ async function buildOutputFinal() {
     const batchSize = 10;
     for (let i = 0; i < tasks.length; i += batchSize) {
         const batch = tasks.slice(i, i + batchSize);
-        await processBatch(batch, mode); // Pakai AWAIT agar urut
+        await processBatch(batch, mode);
     }
 
     // --- SCAN ULANG & RETRY (HANYA MODE BELAJAR) ---
     if (mode === "belajar") {
-        // Cek mana yang benar-benar belum ada di resultsMap
         let missingTasks = tasks.filter(t => !resultsMap[t.index.toString()]);
         
         if (missingTasks.length > 0) {
             console.log(`Retry mendeteksi ${missingTasks.length} baris kosong. Memproses ulang...`);
-            // Gunakan batch lebih kecil (5) agar AI sangat teliti
             for (let i = 0; i < missingTasks.length; i += 5) {
                 const batch = missingTasks.slice(i, i + 5);
                 await processBatch(batch, mode, true);
@@ -222,8 +221,6 @@ ${batch.map(t => `${t.index} | ${t.text}`).join('\n')}`;
         lines.forEach(line => {
             if (!line.includes('|')) return;
             const parts = line.split('|');
-            
-            // Ambil angka pertama yang muncul di bagian index
             const match = parts[0].match(/\d+/);
             if (match && parts.length >= 3) {
                 const idx = match[0];
@@ -242,7 +239,6 @@ function renderOutput(mode) {
     const finalOut = [];
     for (let i = 0; i < articleLines.length; i++) {
         const original = articleLines[i];
-        // Pastikan kita cek index sebagai string
         const data = resultsMap[i.toString()]; 
         
         if (data) {
@@ -266,7 +262,6 @@ function renderOutput(mode) {
 
     hideLoading();  
     document.getElementById("finalContent").textContent = finalOut.join("\n");
-}
 }
 
 function showLoading() {
