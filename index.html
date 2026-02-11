@@ -116,10 +116,12 @@ button:hover { background: #019875; }
 
 <script>
 let articleLines = [];
+let resultsMap = {};
 
 async function scrape() {
     const url = document.getElementById("urlInput").value;
     if (!url) return alert("Masukkan URL dulu!");
+    resultsMap = {}; // Reset map hasil
 
     document.getElementById("resultFinal").innerHTML = `<div class="text-secondary">Mengambil data...</div>`;
 
@@ -158,66 +160,77 @@ async function geminiCall(prompt) {
 }
 
 async function buildOutputFinal() {
-    const finalOut = [];
     const mode = document.getElementById("modePrompt").value;
     showLoading();
 
     const tasks = [];
     for (let i = 0; i < articleLines.length; i++) {
         let clean = articleLines[i].replace(/<[^>]+>/g, "").trim();
-        
-        // MODIFIKASI FILTER UNTUK MODE BELAJAR
         if (mode === "belajar") {
-            // Ambil semua teks yang punya huruf/angka (termasuk judul Inggris) tapi abaikan yang cuma simbol 1 karakter
             if (/[a-zA-Z0-9\u3040-\u30ff\u4e00-\u9faf]/.test(clean) && clean.length > 1) {
                 tasks.push({ index: i, text: clean });
             }
         } else {
-            // Mode Normal tetap filter standar Jepang
             if (/[\u3040-\u30ff\u4e00-\u9faf]/.test(clean)) {
                 tasks.push({ index: i, text: clean });
             }
         }
     }
 
-    const batchSize = 15; 
-    const resultsMap = {};
-
+    // --- PROSES BATCH PERTAMA ---
+    const batchSize = 10; // Batch kecil agar lebih teliti
     for (let i = 0; i < tasks.length; i += batchSize) {
         const batch = tasks.slice(i, i + batchSize);
-        let batchPrompt = "";
+        await processBatch(batch, mode);
+    }
 
-        if (mode === "belajar") {
-            // MODIFIKASI PROMPT MODE BELAJAR (Lebih to-the-point)
-            batchPrompt = `Task: Sakurazaka46 Blog translation for N4 level.
+    // --- SCAN ULANG & RETRY (HANYA MODE BELAJAR) ---
+    if (mode === "belajar") {
+        const missingTasks = tasks.filter(t => !resultsMap[t.index]);
+        if (missingTasks.length > 0) {
+            console.log(`Retry mendeteksi ${missingTasks.length} baris kosong. Memproses ulang...`);
+            // Batch lebih kecil lagi untuk retry agar AI fokus maksimal
+            for (let i = 0; i < missingTasks.length; i += 5) {
+                const batch = missingTasks.slice(i, i + 5);
+                await processBatch(batch, mode, true);
+            }
+        }
+    }
+
+    renderOutput(mode);
+}
+
+async function processBatch(batch, mode, isRetry = false) {
+    let prompt = "";
+    if (mode === "belajar") {
+        prompt = `Task: ${isRetry ? "URGENT RETRY " : ""}Sakurazaka46 Blog translation.
 Format: [Index] | [Furigana] | [Translation]
 Rules:
-1. Rewrite Japanese text with Furigana in brackets for Kanji. e.g. 漢字[かんじ].
-2. Keep English/Names as is.
-3. Indonesian translation must be simple.
+1. Use Furigana for Kanji: 漢字[かんじ].
+2. Keep English/Names as is. Simple Indonesian.
 Lines:
 ${batch.map(t => `${t.index} | ${t.text}`).join('\n')}`;
-        } else {
-            batchPrompt = `Convert these Japanese lines into ROMAJI and INDONESIAN.
+    } else {
+        prompt = `Convert these to ROMAJI and INDONESIAN.
 Format: [Index] | [Romaji] | [Translation]
 Lines:
 ${batch.map(t => `${t.index} | ${t.text}`).join('\n')}`;
-        }
-
-        try {
-            const aiResponse = await geminiCall(batchPrompt);
-            const responseLines = aiResponse.split('\n');
-            responseLines.forEach(line => {
-                const parts = line.split('|');
-                if (parts.length >= 3) {
-                    // Bersihkan index dari karakter non-angka agar mapping akurat
-                    const idx = parts[0].replace(/[^0-9]/g, "").trim();
-                    resultsMap[idx] = { val1: parts[1].trim(), val2: parts[2].trim() };
-                }
-            });
-        } catch (e) { console.error(e); }
     }
 
+    try {
+        const aiResponse = await geminiCall(prompt);
+        aiResponse.split('\n').forEach(line => {
+            const parts = line.split('|');
+            if (parts.length >= 3) {
+                const idx = parts[0].replace(/[^0-9]/g, "").trim();
+                if (idx) resultsMap[idx] = { val1: parts[1].trim(), val2: parts[2].trim() };
+            }
+        });
+    } catch (e) { console.error("Batch processing error", e); }
+}
+
+function renderOutput(mode) {
+    const finalOut = [];
     for (let i = 0; i < articleLines.length; i++) {
         const original = articleLines[i];
         if (resultsMap[i]) {
